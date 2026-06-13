@@ -19,16 +19,30 @@ This guide explains the 8 core modules of the **WellBeing360** application and p
 
 ## 2. Seeded Test Accounts & Roles
 
-The database seeds the following accounts. Use these to generate JWT tokens with correct roles:
+The database seeds 20 distinct users across different roles, grades, and departments. Use these to generate JWT tokens for different testing scenarios:
 
-| User ID | Name | Email | Password | Role / Persona |
-| :--- | :--- | :--- | :--- | :--- |
-| **1** | **gopal** | `employee@wellbeing360.com` | `password` | **Employee** |
-| **2** | **dharshan** | `hrbenefits@wellbeing360.com` | `password` | **HR Benefits Admin** |
-| **3** | **Vignesh** | `finance@wellbeing360.com` | `password` | **Finance Executive** |
-| **4** | **Nishanth** | `wellness@wellbeing360.com` | `password` | **Wellness Coordinator** |
-| **5** | **pradeep** | `recognition@wellbeing360.com` | `password` | **Recognition Manager** |
-| **6** | **Madhav** | `admin@wellbeing360.com` | `password` | **System Administrator** |
+| User ID | Name | Email | Password | Role / Persona | Grade | Department |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **1** | **gopal** | `employee@wellbeing360.com` | `password` | **Employee** | G3 | IT |
+| **2** | **dharshan** | `hrbenefits@wellbeing360.com` | `password` | **HRBenefitsAdmin** | G4 | HR |
+| **3** | **Vignesh** | `finance@wellbeing360.com` | `password` | **Finance** | G4 | Finance |
+| **4** | **Nishanth** | `wellness@wellbeing360.com` | `password` | **WellnessCoordinator** | G3 | HR |
+| **5** | **pradeep** | `recognition@wellbeing360.com` | `password` | **RecognitionManager** | G3 | HR |
+| **6** | **Madhav** | `admin@wellbeing360.com` | `password` | **Admin** | G5 | Executive |
+| **7** | **arun** | `arun@wellbeing360.com` | `password` | **Employee** | G1 | Operations |
+| **8** | **balaji** | `balaji@wellbeing360.com` | `password` | **Employee** | G2 | Sales |
+| **9** | **chandru** | `chandru@wellbeing360.com` | `password` | **Employee** | G3 | Marketing |
+| **10** | **divya** | `divya@wellbeing360.com` | `password` | **Employee** | G4 | R&D |
+| **11** | **eshwar** | `eshwar@wellbeing360.com` | `password` | **Employee** | G5 | Legal |
+| **12** | **faisal** | `faisal@wellbeing360.com` | `password` | **Employee** | G2 | IT |
+| **13** | **gowri** | `gowri@wellbeing360.com` | `password` | **Employee** | G1 | HR |
+| **14** | **hari** | `hari@wellbeing360.com` | `password` | **Employee** | G3 | Finance |
+| **15** | **indhu** | `indhu@wellbeing360.com` | `password` | **Employee** | G4 | IT |
+| **16** | **jeeva** | `jeeva@wellbeing360.com` | `password` | **Employee** | G3 | Operations |
+| **17** | **kavitha** | `kavitha@wellbeing360.com` | `password` | **Employee** | G2 | Sales |
+| **18** | **lokesh** | `lokesh@wellbeing360.com` | `password` | **Employee** | G4 | Marketing |
+| **19** | **meena** | `meena@wellbeing360.com` | `password` | **Employee** | G5 | R&D |
+| **20** | **naveen** | `naveen@wellbeing360.com` | `password` | **Employee** | G1 | IT |
 
 ---
 
