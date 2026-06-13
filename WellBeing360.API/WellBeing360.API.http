@@ -1,0 +1,6 @@
+@WellBeing360.API_HostAddress = http://localhost:5201
+
+GET {{WellBeing360.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

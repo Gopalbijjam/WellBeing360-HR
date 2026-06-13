@@ -1,0 +1,196 @@
+{
+	"info": {
+		"name": "WellBeing360 API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Auth & Registration",
+			"item": [
+				{
+					"name": "Register New User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"Name\": \"Gopal\",\n  \"Email\": \"gopal@example.com\",\n  \"Password\": \"securepassword\",\n  \"Phone\": \"1234567890\",\n  \"Role\": \"Employee\",\n  \"GradeID\": \"G2\",\n  \"DepartmentID\": \"IT\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:5201/api/auth/register",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "5201",
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
+						}
+					}
+				},
+				{
+					"name": "Login (Generate JWT)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"Email\": \"gopal@example.com\",\n  \"Password\": \"securepassword\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:5201/api/auth/login",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "5201",
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Get All Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:5201/api/users",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "5201",
+							"path": [
+								"api",
+								"users"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Wellness",
+			"item": [
+				{
+					"name": "Log Wellness Activity",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-User-Id",
+								"value": "7"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"challengeId\": 1,\n  \"activityValue\": 10000,\n  \"logDate\": \"2026-06-07\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:5201/api/wellness/log-activity",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "5201",
+							"path": [
+								"api",
+								"wellness",
+								"log-activity"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get My Activity Logs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-User-Id",
+								"value": "7"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:5201/api/wellness/my-logs",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "5201",
+							"path": [
+								"api",
+								"wellness",
+								"my-logs"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Employee Assistance Program (EAP)",
+			"item": [
+				{
+					"name": "Book Counseling Session",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-User-Id",
+								"value": "7"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"serviceId\": 1,\n  \"requestedDate\": \"2026-06-15T10:00:00\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:5201/api/eap/book",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "5201",
+							"path": [
+								"api",
+								"eap",
+								"book"
+							]
+						}
+					}
+				}
+			]
+		}
+	]
+}
