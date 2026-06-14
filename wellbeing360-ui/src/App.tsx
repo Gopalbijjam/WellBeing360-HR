@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   User as UserIcon, Users, Shield, Heart, Award, DollarSign, Activity, 
   Calendar, Bell, Plus, Trash2, Check, Trophy, ShoppingBag, Gift, 
-  FileText, Layers, RefreshCw, Star, MessageSquare
+  FileText, Layers, RefreshCw, Star, MessageSquare, Search, Filter
 } from 'lucide-react';
 import { api, setCurrentUserId, getCurrentUserId, setAuthToken, getAuthToken } from './api';
 
@@ -102,6 +102,18 @@ interface ActivityLog {
   status: string;
 }
 
+interface CoordinatorActivityLog {
+  logID: number;
+  employeeID: number;
+  employeeName: string;
+  challengeName: string;
+  activityType: string;
+  activityValue: number;
+  pointsEarned: number;
+  logDate: string;
+  status: string;
+}
+
 interface EAPService {
   serviceID: number;
   serviceName: string;
@@ -135,6 +147,28 @@ interface RecognitionAward {
 interface RewardPoints {
   pointsID: number;
   employeeID: number;
+  totalEarned: number;
+  totalRedeemed: number;
+  balance: number;
+  lastUpdated: string;
+}
+
+interface RecognitionAwardResponse {
+  awardID: number;
+  nominatorName: string;
+  recipientName: string;
+  category: string;
+  badgeName: string;
+  pointsAwarded: number;
+  message: string;
+  awardDate: string;
+  status: string;
+}
+
+interface EmployeePoints {
+  pointsID: number;
+  employeeID: number;
+  employeeName: string;
   totalEarned: number;
   totalRedeemed: number;
   balance: number;
@@ -250,6 +284,9 @@ export default function App() {
   // Wellness Coordinator States
   const [newProgram, setNewProgram] = useState({name: '', theme: 'Fitness', startDate: '', endDate: '', pointsOnOffer: 500, targetParticipation: 80});
   const [newChallenge, setNewChallenge] = useState({programID: 0, challengeName: '', activityType: 'Steps', dailyTarget: 10000, duration: 7, pointsPerCompletion: 100});
+  const [allActivityLogs, setAllActivityLogs] = useState<CoordinatorActivityLog[]>([]);
+  const [activitySearchQuery, setActivitySearchQuery] = useState('');
+  const [activityTypeFilter, setActivityTypeFilter] = useState('All');
 
   // Finance Executive States
   const [allSessions, setAllSessions] = useState<EAPSession[]>([]);
@@ -258,7 +295,14 @@ export default function App() {
 
   // Recognition Manager States
   const [newCatalogItem, setNewCatalogItem] = useState({itemName: '', category: 'Voucher', pointsRequired: 500, availableQuantity: 50});
-  const [allAwards, setAllAwards] = useState<RecognitionAward[]>([]);
+  const [allAwards, setAllAwards] = useState<RecognitionAwardResponse[]>([]);
+  const [allPoints, setAllPoints] = useState<EmployeePoints[]>([]);
+  const [recognitionTab, setRecognitionTab] = useState<'awards' | 'points' | 'catalog'>('awards');
+  const [awardsSearchQuery, setAwardsSearchQuery] = useState('');
+  const [awardsCategoryFilter, setAwardsCategoryFilter] = useState('All');
+  const [pointsSearchQuery, setPointsSearchQuery] = useState('');
+  const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
+  const [catalogFilter, setCatalogFilter] = useState('All');
 
   // Admin Control Center States
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -353,6 +397,8 @@ export default function App() {
         } else if (currentUser.role === 'WellnessCoordinator') {
           const progs = await api.getWellnessPrograms();
           setWellnessPrograms(progs);
+          const logs = await api.getAllActivityLogs();
+          setAllActivityLogs(logs);
         } else if (currentUser.role === 'Finance') {
           const sessList = await api.getAllSessions();
           setAllSessions(sessList);
@@ -368,6 +414,8 @@ export default function App() {
           setCatalogItems(cat);
           const awList = await api.getAllAwards();
           setAllAwards(awList);
+          const ptsList = await api.getAllPointsBalances();
+          setAllPoints(ptsList);
         } else if (currentUser.role === 'Admin') {
           // Audit log list
           const uList = await api.getUsers();
@@ -2268,6 +2316,150 @@ export default function App() {
                 </form>
               </div>
             </div>
+
+            {/* Activity Log Dashboard Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="glass-panel p-5 border-glass">
+                <span className="text-[10px] text-foreground-dim uppercase tracking-wider font-bold">Total Logs Tracked</span>
+                <p className="text-3xl font-bold font-heading text-black mt-1">{allActivityLogs.length}</p>
+                <span className="text-[10px] text-foreground-muted mt-1 block">
+                  {allActivityLogs.filter(log => {
+                    const query = activitySearchQuery.toLowerCase().trim();
+                    const matchesSearch = log.employeeName.toLowerCase().includes(query) || log.challengeName.toLowerCase().includes(query);
+                    const matchesType = activityTypeFilter === 'All' || log.activityType === activityTypeFilter;
+                    return matchesSearch && matchesType;
+                  }).length} matching filters
+                </span>
+              </div>
+              <div className="glass-panel p-5 border-glass">
+                <span className="text-[10px] text-foreground-dim uppercase tracking-wider font-bold">Total Points Distributed</span>
+                <p className="text-3xl font-bold font-heading text-secondary mt-1">
+                  +{allActivityLogs.reduce((sum, l) => sum + l.pointsEarned, 0)} pts
+                </p>
+                <span className="text-[10px] text-foreground-muted mt-1 block">Across all challenges</span>
+              </div>
+              <div className="glass-panel p-5 border-glass">
+                <span className="text-[10px] text-foreground-dim uppercase tracking-wider font-bold">Verified Logs Rate</span>
+                <p className="text-3xl font-bold font-heading text-success mt-1">
+                  {allActivityLogs.length > 0 
+                    ? Math.round((allActivityLogs.filter(l => l.status === 'Verified').length / allActivityLogs.length) * 100) 
+                    : 100}%
+                </p>
+                <span className="text-[10px] text-foreground-muted mt-1 block">Instant verification active</span>
+              </div>
+            </div>
+
+            {/* Employee Activity Log History */}
+            <div className="glass-panel p-6 border-glass">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <div>
+                  <h3 className="font-heading font-bold text-lg text-black">Employee Challenge Submissions</h3>
+                  <p className="text-xs text-foreground-dim mt-0.5">Real-time log of active wellness challenge participations</p>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                  {/* Search Bar */}
+                  <div className="relative flex-1 sm:flex-initial">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-foreground-dim pointer-events-none" />
+                    <input 
+                      type="text"
+                      placeholder="Search employee or challenge..."
+                      value={activitySearchQuery}
+                      onChange={(e) => setActivitySearchQuery(e.target.value)}
+                      className="custom-input pl-9 text-xs py-2 w-full sm:w-64"
+                    />
+                  </div>
+
+                  {/* Filter Dropdown */}
+                  <div className="relative flex-1 sm:flex-initial flex items-center">
+                    <Filter className="absolute left-3 h-4 w-4 text-foreground-dim pointer-events-none" />
+                    <select
+                      value={activityTypeFilter}
+                      onChange={(e) => setActivityTypeFilter(e.target.value)}
+                      className="custom-select pl-9 text-xs py-2 pr-8 w-full sm:w-48 appearance-none bg-no-repeat bg-right"
+                    >
+                      <option value="All">All Activities</option>
+                      <option value="Steps">Steps Count</option>
+                      <option value="Meditation">Meditation Minutes</option>
+                      <option value="WaterIntake">Water Intake</option>
+                      <option value="SleepLog">Sleep Hours</option>
+                      <option value="NutritionTrack">Nutrition Intake</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Table rendering */}
+              <div className="table-container">
+                {(() => {
+                  const filtered = allActivityLogs.filter(log => {
+                    const query = activitySearchQuery.toLowerCase().trim();
+                    const matchesSearch = 
+                      log.employeeName.toLowerCase().includes(query) || 
+                      log.challengeName.toLowerCase().includes(query) ||
+                      (log.employeeID && log.employeeID.toString().includes(query));
+                    const matchesType = activityTypeFilter === 'All' || log.activityType === activityTypeFilter;
+                    return matchesSearch && matchesType;
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-foreground-muted text-sm bg-card-hover border border-dashed border-glass/40">
+                        No activity logs match your search or filters.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <table className="custom-table">
+                      <thead>
+                        <tr>
+                          <th>Log ID</th>
+                          <th>Employee</th>
+                          <th>Challenge Name</th>
+                          <th>Activity Type</th>
+                          <th>Value Tracked</th>
+                          <th>Points Distributed</th>
+                          <th>Date Logged</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.map(log => {
+                          let badgeClass = "badge-primary";
+                          if (log.activityType === 'Steps') badgeClass = "badge-active";
+                          else if (log.activityType === 'Meditation') badgeClass = "badge-secondary";
+                          else if (log.activityType === 'WaterIntake') badgeClass = "badge-pending";
+                          else if (log.activityType === 'SleepLog') badgeClass = "badge-error";
+                          
+                          return (
+                            <tr key={log.logID} className="hover:bg-card-hover transition-colors">
+                              <td className="text-black font-semibold">#{log.logID}</td>
+                              <td>
+                                <div className="font-medium text-black">{log.employeeName}</div>
+                                <div className="text-[10px] text-foreground-muted">ID: {log.employeeID}</div>
+                              </td>
+                              <td>{log.challengeName}</td>
+                              <td>
+                                <span className={`badge ${badgeClass}`}>{log.activityType}</span>
+                              </td>
+                              <td className="text-black font-bold">
+                                {log.activityValue} {log.activityType === 'Steps' ? 'steps' : log.activityType === 'Meditation' ? 'mins' : log.activityType === 'WaterIntake' ? 'glasses' : log.activityType === 'SleepLog' ? 'hrs' : 'logs'}
+                              </td>
+                              <td className="text-secondary font-bold">+{log.pointsEarned} pts</td>
+                              <td>{new Date(log.logDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                              <td>
+                                <span className="badge badge-active">{log.status}</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  );
+                })()}
+              </div>
+            </div>
           </div>
         )}
 
@@ -2456,97 +2648,392 @@ export default function App() {
               <p className="text-foreground-muted">Manage peer recognition awards, milestone rewards, and reward points catalogs.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {/* Add Catalog Item */}
-              <div className="glass-panel p-6 border-glass md:col-span-1 h-fit">
-                <h3 className="font-heading font-bold text-lg text-black mb-4 flex items-center gap-2">
-                  <Plus className="text-accent" /> Add Reward Item
-                </h3>
-                <form onSubmit={handleCreateCatalogItem} className="space-y-4">
-                  <div>
-                    <label className="text-xs text-foreground-muted block mb-1">Item Name</label>
-                    <input 
-                      type="text" 
-                      required 
-                      placeholder="e.g. Fitness Tracker Smartwatch" 
-                      value={newCatalogItem.itemName}
-                      onChange={(e) => setNewCatalogItem({ ...newCatalogItem, itemName: e.target.value })}
-                      className="custom-input" 
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-foreground-muted block mb-1">Category</label>
-                    <select 
-                      value={newCatalogItem.category} 
-                      onChange={(e) => setNewCatalogItem({ ...newCatalogItem, category: e.target.value })}
-                      className="custom-select"
-                    >
-                      <option value="Voucher">Gift Voucher</option>
-                      <option value="Merchandise">Merchandise Gear</option>
-                      <option value="Experience">Wellness Experience</option>
-                      <option value="Charity">Charity Donation</option>
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs text-foreground-muted block mb-1">Points Required</label>
-                      <input 
-                        type="number" 
-                        value={newCatalogItem.pointsRequired}
-                        onChange={(e) => setNewCatalogItem({ ...newCatalogItem, pointsRequired: parseInt(e.target.value) })}
-                        className="custom-input" 
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-foreground-muted block mb-1">Available Quantity</label>
-                      <input 
-                        type="number" 
-                        value={newCatalogItem.availableQuantity}
-                        onChange={(e) => setNewCatalogItem({ ...newCatalogItem, availableQuantity: parseInt(e.target.value) })}
-                        className="custom-input" 
-                      />
-                    </div>
-                  </div>
-                  <button type="submit" className="w-full py-3  font-semibold gradient-btn">
-                    Create Item
-                  </button>
-                </form>
+            {/* KPI Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
+              <div className="glass-panel p-5 border-glass">
+                <span className="text-[10px] text-foreground-dim uppercase tracking-wider font-bold">Total Recognition Awards</span>
+                <p className="text-3xl font-bold font-heading text-black mt-1">{allAwards.length}</p>
+                <span className="text-[10px] text-foreground-muted mt-1 block">Category based badges awarded</span>
+              </div>
+              <div className="glass-panel p-5 border-glass">
+                <span className="text-[10px] text-foreground-dim uppercase tracking-wider font-bold">Active Reward Balances</span>
+                <p className="text-3xl font-bold font-heading text-secondary mt-1">
+                  {allPoints.length > 0 ? allPoints.reduce((sum, p) => sum + p.balance, 0) : 0} pts
+                </p>
+                <span className="text-[10px] text-foreground-muted mt-1 block">Across all employees</span>
+              </div>
+              <div className="glass-panel p-5 border-glass">
+                <span className="text-[10px] text-foreground-dim uppercase tracking-wider font-bold">Store Catalog Items</span>
+                <p className="text-3xl font-bold font-heading text-success mt-1">{catalogItems.length}</p>
+                <span className="text-[10px] text-foreground-muted mt-1 block">
+                  {catalogItems.filter(i => i.availableQuantity <= 0).length} items currently out of stock
+                </span>
+              </div>
+            </div>
+
+            {/* Tab Switched Content */}
+            <div className="space-y-6">
+              {/* Tab Navigation */}
+              <div className="flex border-b border-glass gap-2 pb-px overflow-x-auto">
+                <button
+                  onClick={() => setRecognitionTab('awards')}
+                  className={`py-2.5 px-4 font-heading font-bold text-xs uppercase tracking-wider border-b-2 transition-all ${
+                    recognitionTab === 'awards'
+                      ? 'border-black text-black'
+                      : 'border-transparent text-foreground-dim hover:text-black'
+                  }`}
+                >
+                  Recognition Awards Log
+                </button>
+                <button
+                  onClick={() => setRecognitionTab('points')}
+                  className={`py-2.5 px-4 font-heading font-bold text-xs uppercase tracking-wider border-b-2 transition-all ${
+                    recognitionTab === 'points'
+                      ? 'border-black text-black'
+                      : 'border-transparent text-foreground-dim hover:text-black'
+                  }`}
+                >
+                  Employee Points Balances
+                </button>
+                <button
+                  onClick={() => setRecognitionTab('catalog')}
+                  className={`py-2.5 px-4 font-heading font-bold text-xs uppercase tracking-wider border-b-2 transition-all ${
+                    recognitionTab === 'catalog'
+                      ? 'border-black text-black'
+                      : 'border-transparent text-foreground-dim hover:text-black'
+                  }`}
+                >
+                  Redemption Catalog & Stock
+                </button>
               </div>
 
-              {/* View Nominated Awards logs */}
-              <div className="glass-panel p-6 border-glass md:col-span-2 space-y-4">
-                <h3 className="font-heading font-bold text-lg text-black">Recognition & Badge Log History</h3>
-                <div className="table-container">
-                  <table className="custom-table">
-                    <thead>
-                      <tr>
-                        <th>Award ID</th>
-                        <th>Nominator ID</th>
-                        <th>Recipient ID</th>
-                        <th>Badge Name</th>
-                        <th>Points</th>
-                        <th>Message</th>
-                        <th>Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {allAwards.map(aw => (
-                        <tr key={aw.awardID}>
-                          <td className="text-black font-semibold">#{aw.awardID}</td>
-                          <td>Employee #{aw.nominatorID}</td>
-                          <td>Employee #{aw.recipientID}</td>
-                          <td>
-                            <span className="badge badge-primary">{aw.badgeName}</span>
-                          </td>
-                          <td className="text-secondary font-bold">+{aw.pointsAwarded} pts</td>
-                          <td className="max-w-xs truncate text-xs text-foreground-muted">{aw.message}</td>
-                          <td>{new Date(aw.awardDate).toLocaleDateString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {/* Tab Panel: Awards Log */}
+              {recognitionTab === 'awards' && (
+                <div className="glass-panel p-6 border-glass space-y-4 animate-fade-in">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                      <h3 className="font-heading font-bold text-lg text-black">Recognition & Badge Log History</h3>
+                      <p className="text-xs text-foreground-dim mt-0.5">Real-time tracker of all peer-to-peer recognition actions</p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                      {/* Search */}
+                      <div className="relative flex-1 sm:flex-initial">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-foreground-dim pointer-events-none" />
+                        <input 
+                          type="text"
+                          placeholder="Search awards, message..."
+                          value={awardsSearchQuery}
+                          onChange={(e) => setAwardsSearchQuery(e.target.value)}
+                          className="custom-input pl-9 text-xs py-2 w-full sm:w-64"
+                        />
+                      </div>
+
+                      {/* Category Filter */}
+                      <div className="relative flex-1 sm:flex-initial flex items-center">
+                        <Filter className="absolute left-3 h-4 w-4 text-foreground-dim pointer-events-none" />
+                        <select
+                          value={awardsCategoryFilter}
+                          onChange={(e) => setAwardsCategoryFilter(e.target.value)}
+                          className="custom-select pl-9 text-xs py-2 pr-8 w-full sm:w-48 appearance-none bg-no-repeat bg-right"
+                        >
+                          <option value="All">All Categories</option>
+                          <option value="PeerRecognition">Peer Recognition</option>
+                          <option value="ManagerNomination">Manager Nomination</option>
+                          <option value="InnovationAward">Innovation Award</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="table-container">
+                    {(() => {
+                      const filtered = allAwards.filter(aw => {
+                        const query = awardsSearchQuery.toLowerCase().trim();
+                        const matchesSearch = 
+                          aw.nominatorName.toLowerCase().includes(query) ||
+                          aw.recipientName.toLowerCase().includes(query) ||
+                          aw.badgeName.toLowerCase().includes(query) ||
+                          aw.message.toLowerCase().includes(query);
+                        const matchesCategory = awardsCategoryFilter === 'All' || aw.category === awardsCategoryFilter;
+                        return matchesSearch && matchesCategory;
+                      });
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="text-center py-8 text-foreground-muted text-sm bg-card-hover border border-dashed border-glass/40">
+                            No recognition awards found matching the filters.
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <table className="custom-table">
+                          <thead>
+                            <tr>
+                              <th>Award ID</th>
+                              <th>Nominator</th>
+                              <th>Recipient</th>
+                              <th>Category</th>
+                              <th>Badge Name</th>
+                              <th>Points</th>
+                              <th>Message</th>
+                              <th>Date</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filtered.map(aw => (
+                              <tr key={aw.awardID} className="hover:bg-card-hover transition-colors">
+                                <td className="text-black font-semibold">#{aw.awardID}</td>
+                                <td>{aw.nominatorName}</td>
+                                <td>{aw.recipientName}</td>
+                                <td>
+                                  <span className="badge badge-secondary">{aw.category}</span>
+                                </td>
+                                <td>
+                                  <span className="badge badge-primary">{aw.badgeName}</span>
+                                </td>
+                                <td className="text-secondary font-bold">+{aw.pointsAwarded} pts</td>
+                                <td className="max-w-xs truncate text-xs text-foreground-muted" title={aw.message}>
+                                  {aw.message}
+                                </td>
+                                <td>{new Date(aw.awardDate).toLocaleDateString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      );
+                    })()}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Tab Panel: Reward Points Balances */}
+              {recognitionTab === 'points' && (
+                <div className="glass-panel p-6 border-glass space-y-4 animate-fade-in">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                      <h3 className="font-heading font-bold text-lg text-black">Reward Points Balances</h3>
+                      <p className="text-xs text-foreground-dim mt-0.5">Active points breakdown for all employee portal accounts</p>
+                    </div>
+
+                    {/* Search */}
+                    <div className="relative w-full md:w-auto">
+                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-foreground-dim pointer-events-none" />
+                      <input 
+                        type="text"
+                        placeholder="Search employee by name..."
+                        value={pointsSearchQuery}
+                        onChange={(e) => setPointsSearchQuery(e.target.value)}
+                        className="custom-input pl-9 text-xs py-2 w-full md:w-64"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="table-container">
+                    {(() => {
+                      const filtered = allPoints.filter(p => {
+                        const query = pointsSearchQuery.toLowerCase().trim();
+                        return p.employeeName.toLowerCase().includes(query) || p.employeeID.toString().includes(query);
+                      });
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="text-center py-8 text-foreground-muted text-sm bg-card-hover border border-dashed border-glass/40">
+                            No employee points balances found.
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <table className="custom-table">
+                          <thead>
+                            <tr>
+                              <th>Points ID</th>
+                              <th>Employee ID</th>
+                              <th>Employee Name</th>
+                              <th>Total Earned</th>
+                              <th>Total Redeemed</th>
+                              <th>Current Balance</th>
+                              <th>Last Updated</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filtered.map(p => (
+                              <tr key={p.pointsID} className="hover:bg-card-hover transition-colors">
+                                <td className="text-black font-semibold">#{p.pointsID}</td>
+                                <td>EMP #{p.employeeID}</td>
+                                <td className="text-black font-medium">{p.employeeName}</td>
+                                <td className="text-success font-semibold">+{p.totalEarned} pts</td>
+                                <td className="text-foreground-muted">-{p.totalRedeemed} pts</td>
+                                <td className="text-secondary font-bold">{p.balance} pts</td>
+                                <td>{new Date(p.lastUpdated).toLocaleDateString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {/* Tab Panel: Redemption Catalog & Stock */}
+              {recognitionTab === 'catalog' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-fade-in">
+                  {/* Add Catalog Item console */}
+                  <div className="glass-panel p-6 border-glass md:col-span-1 h-fit">
+                    <h3 className="font-heading font-bold text-lg text-black mb-4 flex items-center gap-2">
+                      <Plus className="text-accent" /> Add Reward Item
+                    </h3>
+                    <form onSubmit={handleCreateCatalogItem} className="space-y-4">
+                      <div>
+                        <label className="text-xs text-foreground-muted block mb-1">Item Name</label>
+                        <input 
+                          type="text" 
+                          required 
+                          placeholder="e.g. Fitness Tracker Smartwatch" 
+                          value={newCatalogItem.itemName}
+                          onChange={(e) => setNewCatalogItem({ ...newCatalogItem, itemName: e.target.value })}
+                          className="custom-input" 
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-foreground-muted block mb-1">Category</label>
+                        <select 
+                          value={newCatalogItem.category} 
+                          onChange={(e) => setNewCatalogItem({ ...newCatalogItem, category: e.target.value })}
+                          className="custom-select"
+                        >
+                          <option value="Voucher">Gift Voucher</option>
+                          <option value="Merchandise">Merchandise Gear</option>
+                          <option value="Experience">Wellness Experience</option>
+                          <option value="Charity">Charity Donation</option>
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs text-foreground-muted block mb-1">Points Required</label>
+                          <input 
+                            type="number" 
+                            value={newCatalogItem.pointsRequired}
+                            onChange={(e) => setNewCatalogItem({ ...newCatalogItem, pointsRequired: parseInt(e.target.value) })}
+                            className="custom-input" 
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-foreground-muted block mb-1">Available Quantity</label>
+                          <input 
+                            type="number" 
+                            value={newCatalogItem.availableQuantity}
+                            onChange={(e) => setNewCatalogItem({ ...newCatalogItem, availableQuantity: parseInt(e.target.value) })}
+                            className="custom-input" 
+                          />
+                        </div>
+                      </div>
+                      <button type="submit" className="w-full py-3 font-semibold gradient-btn">
+                        Create Item
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Catalog items list */}
+                  <div className="glass-panel p-6 border-glass md:col-span-2 space-y-4">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                      <div>
+                        <h3 className="font-heading font-bold text-lg text-black">Redemption Catalog Store</h3>
+                        <p className="text-xs text-foreground-dim mt-0.5">Inventory levels and availability statuses of rewards</p>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                        {/* Search */}
+                        <div className="relative flex-1 sm:flex-initial">
+                          <Search className="absolute left-3 top-2.5 h-4 w-4 text-foreground-dim pointer-events-none" />
+                          <input 
+                            type="text"
+                            placeholder="Search catalog items..."
+                            value={catalogSearchQuery}
+                            onChange={(e) => setCatalogSearchQuery(e.target.value)}
+                            className="custom-input pl-9 text-xs py-2 w-full sm:w-64"
+                          />
+                        </div>
+
+                        {/* Filter */}
+                        <div className="relative flex-1 sm:flex-initial flex items-center">
+                          <Filter className="absolute left-3 h-4 w-4 text-foreground-dim pointer-events-none" />
+                          <select
+                            value={catalogFilter}
+                            onChange={(e) => setCatalogFilter(e.target.value)}
+                            className="custom-select pl-9 text-xs py-2 pr-8 w-full sm:w-48 appearance-none bg-no-repeat bg-right"
+                          >
+                            <option value="All">All Categories</option>
+                            <option value="Voucher">Gift Voucher</option>
+                            <option value="Merchandise">Merchandise Gear</option>
+                            <option value="Experience">Wellness Experience</option>
+                            <option value="Charity">Charity Donation</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="table-container">
+                      {(() => {
+                        const filtered = catalogItems.filter(item => {
+                          const query = catalogSearchQuery.toLowerCase().trim();
+                          const matchesSearch = item.itemName.toLowerCase().includes(query);
+                          const matchesCategory = catalogFilter === 'All' || item.category === catalogFilter;
+                          return matchesSearch && matchesCategory;
+                        });
+
+                        if (filtered.length === 0) {
+                          return (
+                            <div className="text-center py-8 text-foreground-muted text-sm bg-card-hover border border-dashed border-glass/40">
+                              No catalog items found matching filters.
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <table className="custom-table">
+                            <thead>
+                              <tr>
+                                <th>Item ID</th>
+                                <th>Item Name</th>
+                                <th>Category</th>
+                                <th>Points Required</th>
+                                <th>Stock Qty</th>
+                                <th>Stock Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filtered.map(item => {
+                                const isOutOfStock = item.availableQuantity <= 0;
+                                const statusBadgeClass = isOutOfStock ? 'badge-error' : 'badge-active';
+                                const statusText = isOutOfStock ? 'Out Of Stock' : 'Available';
+                                
+                                return (
+                                  <tr key={item.itemID} className="hover:bg-card-hover transition-colors">
+                                    <td className="text-black font-semibold">#{item.itemID}</td>
+                                    <td className="text-black font-medium">{item.itemName}</td>
+                                    <td>
+                                      <span className="badge badge-secondary">{item.category}</span>
+                                    </td>
+                                    <td className="text-primary font-bold">{item.pointsRequired} pts</td>
+                                    <td className="text-black font-semibold">{item.availableQuantity} units</td>
+                                    <td>
+                                      <span className={`badge ${statusBadgeClass}`}>{statusText}</span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

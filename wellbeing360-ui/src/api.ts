@@ -88,6 +88,7 @@ export const api = {
     createChallenge: (data: any) => request('wellness/challenges', { method: 'POST', body: JSON.stringify(data) }),
     logActivity: (data: any) => request('wellness/log-activity', { method: 'POST', body: JSON.stringify(data) }),
     getMyLogs: () => request('wellness/my-logs'),
+    getAllActivityLogs: () => request('wellness/all-logs'),
     getLeaderboard: (programId: number) => request(`wellness/programs/${programId}/leaderboard`),
 
     // EAP
@@ -104,6 +105,7 @@ export const api = {
     getMyAwardsReceived: () => request('recognition/my-awards/received'),
     getMyAwardsSent: () => request('recognition/my-awards/sent'),
     getAllAwards: () => request('recognition/awards'),
+    getAllPointsBalances: () => request('recognition/points'),
     getMyPoints: () => request('recognition/my-points'),
     getCatalog: () => request('recognition/catalog'),
     createCatalogItem: (data: any) => request('recognition/catalog', { method: 'POST', body: JSON.stringify(data) }),

@@ -120,6 +120,35 @@ namespace WellBeing360.Services
             return await _unitOfWork.ActivityLogs.FindAsync(al => al.EmployeeID == employeeId);
         }
 
+        public async Task<IEnumerable<CoordinatorActivityLogResponse>> GetCoordinatorActivityLogsAsync()
+        {
+            var logs = await _unitOfWork.ActivityLogs.GetAllAsync();
+            var challenges = await _unitOfWork.WellnessChallenges.GetAllAsync();
+            var users = await _unitOfWork.Users.GetAllAsync();
+
+            var challengeMap = challenges.ToDictionary(c => c.ChallengeID, c => c);
+            var userMap = users.ToDictionary(u => u.UserID, u => u);
+
+            var list = new List<CoordinatorActivityLogResponse>();
+            foreach (var l in logs)
+            {
+                list.Add(new CoordinatorActivityLogResponse
+                {
+                    LogID = l.LogID,
+                    EmployeeID = l.EmployeeID,
+                    EmployeeName = userMap.TryGetValue(l.EmployeeID, out var u) ? u.Name : $"Employee {l.EmployeeID}",
+                    ChallengeName = challengeMap.TryGetValue(l.ChallengeID, out var c) ? c.ChallengeName : "Unknown Challenge",
+                    ActivityType = challengeMap.TryGetValue(l.ChallengeID, out var ch) ? ch.ActivityType : "Unknown",
+                    ActivityValue = l.ActivityValue,
+                    PointsEarned = l.PointsEarned,
+                    LogDate = l.LogDate,
+                    Status = l.Status
+                });
+            }
+
+            return list.OrderByDescending(l => l.LogDate);
+        }
+
         public async Task<IEnumerable<LeaderboardEntryDTO>> GetLeaderboardAsync(int programId)
         {
             var challenges = await _unitOfWork.WellnessChallenges.FindAsync(wc => wc.ProgramID == programId);

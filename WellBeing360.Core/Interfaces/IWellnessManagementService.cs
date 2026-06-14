@@ -14,6 +14,7 @@ namespace WellBeing360.Core.Interfaces
         Task<WellnessChallenge> CreateChallengeAsync(WellnessChallenge challenge);
         Task<ActivityLog> LogActivityAsync(int employeeId, ActivityLogRequest request);
         Task<IEnumerable<ActivityLog>> GetEmployeeLogsAsync(int employeeId);
+        Task<IEnumerable<CoordinatorActivityLogResponse>> GetCoordinatorActivityLogsAsync();
         Task<IEnumerable<LeaderboardEntryDTO>> GetLeaderboardAsync(int programId);
     }
 }

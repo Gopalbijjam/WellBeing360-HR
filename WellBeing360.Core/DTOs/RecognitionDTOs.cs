@@ -28,4 +28,15 @@ namespace WellBeing360.Core.DTOs
     {
         public int ItemID { get; set; }
     }
+
+    public class EmployeePointsResponse
+    {
+        public int PointsID { get; set; }
+        public int EmployeeID { get; set; }
+        public string EmployeeName { get; set; } = string.Empty;
+        public int TotalEarned { get; set; }
+        public int TotalRedeemed { get; set; }
+        public int Balance { get; set; }
+        public DateTime LastUpdated { get; set; }
+    }
 }

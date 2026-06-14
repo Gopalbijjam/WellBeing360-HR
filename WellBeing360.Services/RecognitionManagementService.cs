@@ -92,9 +92,42 @@ namespace WellBeing360.Services
             return await _unitOfWork.RecognitionAwards.FindAsync(ra => ra.NominatorID == employeeId);
         }
 
-        public async Task<IEnumerable<RecognitionAward>> GetAllAwardsAsync()
+        public async Task<IEnumerable<RecognitionAwardResponse>> GetAllAwardsAsync()
         {
-            return await _unitOfWork.RecognitionAwards.GetAllAsync();
+            var awards = await _unitOfWork.RecognitionAwards.GetAllAsync();
+            var users = await _unitOfWork.Users.GetAllAsync();
+            var userMap = users.ToDictionary(u => u.UserID, u => u);
+
+            return awards.Select(a => new RecognitionAwardResponse
+            {
+                AwardID = a.AwardID,
+                NominatorName = userMap.TryGetValue(a.NominatorID, out var nom) ? nom.Name : $"Employee {a.NominatorID}",
+                RecipientName = userMap.TryGetValue(a.RecipientID, out var rec) ? rec.Name : $"Employee {a.RecipientID}",
+                Category = a.Category,
+                BadgeName = a.BadgeName,
+                PointsAwarded = a.PointsAwarded,
+                Message = a.Message,
+                AwardDate = a.AwardDate,
+                Status = a.Status
+            }).OrderByDescending(a => a.AwardDate).ToList();
+        }
+
+        public async Task<IEnumerable<EmployeePointsResponse>> GetAllPointsBalancesAsync()
+        {
+            var points = await _unitOfWork.RewardPoints.GetAllAsync();
+            var users = await _unitOfWork.Users.GetAllAsync();
+            var userMap = users.ToDictionary(u => u.UserID, u => u);
+
+            return points.Select(p => new EmployeePointsResponse
+            {
+                PointsID = p.PointsID,
+                EmployeeID = p.EmployeeID,
+                EmployeeName = userMap.TryGetValue(p.EmployeeID, out var u) ? u.Name : $"Employee {p.EmployeeID}",
+                TotalEarned = p.TotalEarned,
+                TotalRedeemed = p.TotalRedeemed,
+                Balance = p.Balance,
+                LastUpdated = p.LastUpdated
+            }).OrderByDescending(p => p.Balance).ToList();
         }
 
         public async Task<RewardPoints?> GetPointsBalanceAsync(int employeeId)

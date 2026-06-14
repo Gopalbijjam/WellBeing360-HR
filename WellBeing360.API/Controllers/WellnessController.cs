@@ -81,5 +81,13 @@ namespace WellBeing360.API.Controllers
             var leaderboard = await _wellnessService.GetLeaderboardAsync(programId);
             return Ok(leaderboard);
         }
+
+        [Authorize(Roles = "Admin,WellnessCoordinator")]
+        [HttpGet("all-logs")]
+        public async Task<IActionResult> GetAllActivityLogs()
+        {
+            var logs = await _wellnessService.GetCoordinatorActivityLogsAsync();
+            return Ok(logs);
+        }
     }
 }

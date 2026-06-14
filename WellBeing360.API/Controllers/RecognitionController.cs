@@ -61,6 +61,14 @@ namespace WellBeing360.API.Controllers
             return Ok(awards);
         }
 
+        [Authorize(Roles = "Admin,RecognitionManager")]
+        [HttpGet("points")]
+        public async Task<IActionResult> GetAllPoints()
+        {
+            var points = await _recService.GetAllPointsBalancesAsync();
+            return Ok(points);
+        }
+
         [Authorize(Roles = "Admin,Employee")]
         [HttpGet("my-points")]
         public async Task<IActionResult> GetMyPoints([FromHeader(Name = "X-User-Id")] int employeeId)
