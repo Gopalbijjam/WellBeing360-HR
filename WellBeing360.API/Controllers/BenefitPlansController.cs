@@ -47,5 +47,19 @@ namespace WellBeing360.API.Controllers
             var buckets = await _benefitService.GetFlexBucketsAsync(id);
             return Ok(buckets);
         }
+
+        [Authorize(Roles = "Admin,Finance")]
+        [HttpPut("{id}/status")]
+        public async Task<IActionResult> UpdatePlanStatus(int id, [FromBody] StatusUpdateRequest request)
+        {
+            var updated = await _benefitService.UpdatePlanStatusAsync(id, request.Status);
+            if (updated == null) return NotFound();
+            return Ok(updated);
+        }
+    }
+
+    public class StatusUpdateRequest
+    {
+        public string Status { get; set; } = string.Empty;
     }
 }

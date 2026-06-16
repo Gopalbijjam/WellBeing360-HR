@@ -180,5 +180,21 @@ namespace WellBeing360.Services
 
             return leaderboard;
         }
+
+        public async Task<WellnessChallenge?> UpdateChallengeStatusAsync(int challengeId, string status)
+        {
+            var challenge = await _unitOfWork.WellnessChallenges.GetByIdAsync(challengeId);
+            if (challenge == null) return null;
+
+            challenge.Status = status;
+            _unitOfWork.WellnessChallenges.Update(challenge);
+            await _unitOfWork.CompleteAsync();
+            return challenge;
+        }
+
+        public async Task<IEnumerable<WellnessChallenge>> GetAllChallengesAcrossProgramsAsync()
+        {
+            return await _unitOfWork.WellnessChallenges.GetAllAsync();
+        }
     }
 }

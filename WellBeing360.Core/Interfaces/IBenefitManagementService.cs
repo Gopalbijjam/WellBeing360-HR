@@ -19,5 +19,8 @@ namespace WellBeing360.Core.Interfaces
         Task<IEnumerable<Dependent>> GetDependentsAsync(int employeeId);
         Task<Dependent> AddDependentAsync(int employeeId, DependentDTO dependent);
         Task<bool> RemoveDependentAsync(int dependentId);
+        Task<IEnumerable<BenefitEnrolment>> GetAllEnrolmentsAsync();
+        Task<BenefitPlan?> UpdatePlanStatusAsync(int planId, string status);
+        Task<BenefitEnrolment?> UpdateEnrolmentStatusAsync(int enrolmentId, string status);
     }
 }

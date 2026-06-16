@@ -95,5 +95,22 @@ namespace WellBeing360.API.Controllers
             if (!success) return NotFound();
             return NoContent();
         }
+
+        [Authorize(Roles = "Admin,HRBenefitsAdmin,Finance")]
+        [HttpGet("all-enrolments")]
+        public async Task<IActionResult> GetAllEnrolments()
+        {
+            var enrolments = await _benefitService.GetAllEnrolmentsAsync();
+            return Ok(enrolments);
+        }
+
+        [Authorize(Roles = "Admin,Finance")]
+        [HttpPut("{enrolmentId}/status")]
+        public async Task<IActionResult> UpdateEnrolmentStatus(int enrolmentId, [FromBody] StatusUpdateRequest request)
+        {
+            var updated = await _benefitService.UpdateEnrolmentStatusAsync(enrolmentId, request.Status);
+            if (updated == null) return NotFound();
+            return Ok(updated);
+        }
     }
 }

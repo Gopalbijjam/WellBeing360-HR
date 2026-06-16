@@ -167,5 +167,65 @@ namespace WellBeing360.Services
             await _unitOfWork.CompleteAsync();
             return true;
         }
+
+        public async Task<IEnumerable<BenefitEnrolment>> GetAllEnrolmentsAsync()
+        {
+            var enrolments = await _unitOfWork.BenefitEnrolments.GetAllAsync();
+            var users = await _unitOfWork.Users.GetAllAsync();
+            var plans = await _unitOfWork.BenefitPlans.GetAllAsync();
+
+            var userMap = users.ToDictionary(u => u.UserID, u => u);
+            var planMap = plans.ToDictionary(p => p.PlanID, p => p);
+
+            foreach (var e in enrolments)
+            {
+                if (userMap.TryGetValue(e.EmployeeID, out var u))
+                {
+                    e.Employee = u;
+                }
+                if (planMap.TryGetValue(e.PlanID, out var p))
+                {
+                    e.BenefitPlan = p;
+                }
+            }
+
+            return enrolments;
+        }
+
+        public async Task<BenefitPlan?> UpdatePlanStatusAsync(int planId, string status)
+        {
+            var plan = await _unitOfWork.BenefitPlans.GetByIdAsync(planId);
+            if (plan == null) return null;
+
+            plan.Status = status;
+            _unitOfWork.BenefitPlans.Update(plan);
+            await _unitOfWork.CompleteAsync();
+            return plan;
+        }
+
+        public async Task<BenefitEnrolment?> UpdateEnrolmentStatusAsync(int enrolmentId, string status)
+        {
+            var enrolment = await _unitOfWork.BenefitEnrolments.GetByIdAsync(enrolmentId);
+            if (enrolment == null) return null;
+
+            enrolment.Status = status;
+            _unitOfWork.BenefitEnrolments.Update(enrolment);
+
+            var plan = await _unitOfWork.BenefitPlans.GetByIdAsync(enrolment.PlanID);
+            var planName = plan?.PlanName ?? "Benefit Plan";
+
+            var notification = new Notification
+            {
+                UserID = enrolment.EmployeeID,
+                Message = $"Your enrollment for plan '{planName}' has been {status}.",
+                Category = "Enrolment",
+                Status = "Unread",
+                CreatedDate = DateTime.UtcNow
+            };
+            await _unitOfWork.Notifications.AddAsync(notification);
+
+            await _unitOfWork.CompleteAsync();
+            return enrolment;
+        }
     }
 }

@@ -89,5 +89,22 @@ namespace WellBeing360.API.Controllers
             var logs = await _wellnessService.GetCoordinatorActivityLogsAsync();
             return Ok(logs);
         }
+
+        [Authorize(Roles = "Admin,Finance")]
+        [HttpPut("challenges/{challengeId}/status")]
+        public async Task<IActionResult> UpdateChallengeStatus(int challengeId, [FromBody] StatusUpdateRequest request)
+        {
+            var updated = await _wellnessService.UpdateChallengeStatusAsync(challengeId, request.Status);
+            if (updated == null) return NotFound();
+            return Ok(updated);
+        }
+
+        [Authorize(Roles = "Admin,WellnessCoordinator,Finance,Employee,HRBenefitsAdmin")]
+        [HttpGet("challenges/all")]
+        public async Task<IActionResult> GetAllChallenges()
+        {
+            var challenges = await _wellnessService.GetAllChallengesAcrossProgramsAsync();
+            return Ok(challenges);
+        }
     }
 }

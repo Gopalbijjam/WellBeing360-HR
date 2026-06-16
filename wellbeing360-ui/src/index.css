@@ -1,8 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --font-heading: 'Playfair Display', serif;
-  --font-body: 'Inter', sans-serif;
+  --font-heading: 'Times New Roman', Times, serif;
+  --font-body: 'Times New Roman', Times, serif;
 
   /* Monochromatic Luxury Palette (Zara/H&M Inspired) */
   --bg-app: #ffffff;
@@ -59,19 +59,11 @@ body {
   background: var(--primary);
 }
 
-/* Luxury Minimalist Card (Editorial Grid Box) */
 .glass-panel {
   background: var(--bg-card);
   border: 1px solid var(--border-glass);
   border-radius: 0px;
   box-shadow: none;
-  transition: all 0.2s ease-in-out;
-}
-
-.glass-panel:hover {
-  border-color: var(--border-glow);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  background: var(--bg-card-hover);
 }
 
 /* Animations */
@@ -105,7 +97,6 @@ body {
   letter-spacing: -0.02em;
 }
 
-/* Inverted Editorial Action Button */
 .gradient-btn {
   background: #000000;
   color: #ffffff;
@@ -116,29 +107,11 @@ body {
   font-size: 0.75rem;
   border-radius: 0px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: none;
   position: relative;
   overflow: hidden;
 }
 
-.gradient-btn::after {
-  display: none; /* Remove glowing reflex effects */
-}
-
-.gradient-btn:hover {
-  background: #ffffff;
-  color: #000000;
-  border-color: #000000;
-  transform: none;
-  box-shadow: none;
-}
-
-.gradient-btn:active {
-  background: #eeeeee;
-}
-
-/* Plain Minimal Inputs & Controls */
 .custom-input, .custom-select, .custom-textarea {
   background: #ffffff;
   border: 1px solid #cccccc;
@@ -148,7 +121,6 @@ body {
   border-radius: 0px;
   padding: 10px 12px;
   outline: none;
-  transition: all 0.2s ease;
   width: 100%;
 }
 
@@ -223,9 +195,28 @@ body {
 }
 
 .custom-table tr {
-  transition: background 0.15s ease;
 }
 
-.custom-table tr:hover {
-  background: #fafafa;
+/* GLOBAL OVERRIDES: Force solid colors, Times New Roman, and disable transitions/hovers */
+* {
+  transition: none !important;
+  transition-property: none !important;
+  transition-duration: 0s !important;
+}
+
+*:hover {
+  transform: none !important;
+  scale: none !important;
+  box-shadow: none !important;
+}
+
+.gradient-btn:hover {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+}
+
+/* Disable card hover background shifts to ensure static solid colors */
+.glass-panel:hover, .bg-card-hover:hover, tr:hover {
+  background-color: inherit !important;
 }

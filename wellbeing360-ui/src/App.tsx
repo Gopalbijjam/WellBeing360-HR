@@ -59,6 +59,8 @@ interface BenefitEnrolment {
   employeeContributionAmount: number;
   effectiveDate: string;
   status: string;
+  employee?: User;
+  benefitPlan?: BenefitPlan;
 }
 
 interface Dependent {
@@ -223,6 +225,19 @@ export default function App() {
   const [view, setView] = useState<'app' | 'login' | 'register'>('login');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+
+  // Shared States for Approvals
+  const [allEnrolments, setAllEnrolments] = useState<BenefitEnrolment[]>([]);
+  const [allChallenges, setAllChallenges] = useState<WellnessChallenge[]>([]);
+  const [reimbursementClaims, setReimbursementClaims] = useState<any[]>([
+    { claimID: 101, employeeName: 'gopal', expenseType: 'Dental Care', amount: 120, status: 'Pending' },
+    { claimID: 102, employeeName: 'priya', expenseType: 'Gym Membership', amount: 80, status: 'Pending' },
+    { claimID: 103, employeeName: 'vikram', expenseType: 'Optical Exam', amount: 150, status: 'Approved' }
+  ]);
+  const [newMilestoneAward, setNewMilestoneAward] = useState({ recipientID: 0, points: 500, message: '', milestoneType: '5 Years Service' });
+  const [isAdminMode, setIsAdminMode] = useState<boolean>(() => {
+    return localStorage.getItem('wellbeing360_is_admin_mode') === 'true';
+  });
   
   // Register form state
   const [regName, setRegName] = useState('');
@@ -297,7 +312,7 @@ export default function App() {
   const [newCatalogItem, setNewCatalogItem] = useState({itemName: '', category: 'Voucher', pointsRequired: 500, availableQuantity: 50});
   const [allAwards, setAllAwards] = useState<RecognitionAwardResponse[]>([]);
   const [allPoints, setAllPoints] = useState<EmployeePoints[]>([]);
-  const [recognitionTab, setRecognitionTab] = useState<'awards' | 'points' | 'catalog'>('awards');
+  const [recognitionTab, setRecognitionTab] = useState<'awards' | 'points' | 'catalog' | 'feed'>('awards');
   const [awardsSearchQuery, setAwardsSearchQuery] = useState('');
   const [awardsCategoryFilter, setAwardsCategoryFilter] = useState('All');
   const [pointsSearchQuery, setPointsSearchQuery] = useState('');
@@ -347,62 +362,82 @@ export default function App() {
         const notes = await api.getNotifications();
         setNotifications(notes);
 
+        // Load shared collections for dashboards based on roles to avoid 403 errors
+        let fetchedPlans: BenefitPlan[] = [];
+        let fetchedChallenges: WellnessChallenge[] = [];
+        let fetchedEnrolments: BenefitEnrolment[] = [];
+
+        if (['Admin', 'HRBenefitsAdmin', 'Finance'].includes(currentUser.role)) {
+          fetchedEnrolments = await api.getAllEnrolments().catch(() => []);
+          setAllEnrolments(fetchedEnrolments);
+          fetchedPlans = await api.getPlans().catch(() => []);
+          setPlans(fetchedPlans);
+          fetchedChallenges = await api.getAllChallenges().catch(() => []);
+          setAllChallenges(fetchedChallenges);
+        }
+
         // Portals data based on current user
         if (currentUser.role === 'Employee') {
-          const plansList = await api.getPlans();
-          setPlans(plansList);
+          fetchedPlans = await api.getPlans().catch(() => []);
+          // Only show approved active plans to employee
+          setPlans(fetchedPlans.filter(p => p.status === 'Active'));
 
-          const myEnrols = await api.getMyEnrolments();
+          const myEnrols = await api.getMyEnrolments().catch(() => []);
           setMyEnrolments(myEnrols);
 
           const windowObj = await api.getCurrentWindow().catch(() => null);
           setCurrentWindow(windowObj);
 
-          const deps = await api.getMyDependents();
+          const deps = await api.getMyDependents().catch(() => []);
           setMyDependents(deps);
 
-          const progs = await api.getWellnessPrograms();
+          const progs = await api.getWellnessPrograms().catch(() => []);
           setWellnessPrograms(progs);
           const activeProg = progs.find(p => p.status === 'Active');
           if (activeProg) {
             setActiveProgId(activeProg.programID);
-            const ch = await api.getChallenges(activeProg.programID);
-            setChallenges(ch);
-            const lb = await api.getLeaderboard(activeProg.programID);
+            const ch = await api.getChallenges(activeProg.programID).catch(() => []);
+            // Only show active approved challenges to employee
+            setChallenges(ch.filter(c => c.status === 'Active'));
+            const lb = await api.getLeaderboard(activeProg.programID).catch(() => []);
             setLeaderboard(lb);
           }
 
-          const logs = await api.getMyLogs();
+          const logs = await api.getMyLogs().catch(() => []);
           setMyActivityLogs(logs);
 
-          const eap = await api.getEapServices();
+          const eap = await api.getEapServices().catch(() => []);
           setEapServices(eap);
 
-          const mySess = await api.getMySessions();
+          const mySess = await api.getMySessions().catch(() => []);
           setMySessions(mySess);
 
-          const awards = await api.getMyAwardsReceived();
+          const awards = await api.getMyAwardsReceived().catch(() => []);
           setAwardsReceived(awards);
 
-          const points = await api.getMyPoints();
+          const points = await api.getMyPoints().catch(() => null);
           setPointsBalance(points);
 
-          const cat = await api.getCatalog();
+          const cat = await api.getCatalog().catch(() => []);
           setCatalogItems(cat);
         } else if (currentUser.role === 'HRBenefitsAdmin') {
-          const plansList = await api.getPlans();
-          setPlans(plansList);
-          const windowsList = await api.getWindows();
+          const windowsList = await api.getWindows().catch(() => []);
           setEnrolmentWindows(windowsList);
         } else if (currentUser.role === 'WellnessCoordinator') {
-          const progs = await api.getWellnessPrograms();
+          const progs = await api.getWellnessPrograms().catch(() => []);
           setWellnessPrograms(progs);
-          const logs = await api.getAllActivityLogs();
+          const logs = await api.getAllActivityLogs().catch(() => []);
           setAllActivityLogs(logs);
+          fetchedChallenges = await api.getAllChallenges().catch(() => []);
+          setAllChallenges(fetchedChallenges);
+          if (progs.length > 0) {
+            const lb = await api.getLeaderboard(progs[0].programID).catch(() => []);
+            setLeaderboard(lb);
+          }
         } else if (currentUser.role === 'Finance') {
-          const sessList = await api.getAllSessions();
+          const sessList = await api.getAllSessions().catch(() => []);
           setAllSessions(sessList);
-          const repList = await api.getReports();
+          const repList = await api.getReports().catch(() => []);
           setReports(repList);
           if (repList.length > 0) {
             try {
@@ -410,15 +445,20 @@ export default function App() {
             } catch {}
           }
         } else if (currentUser.role === 'RecognitionManager') {
-          const cat = await api.getCatalog();
+          const cat = await api.getCatalog().catch(() => []);
           setCatalogItems(cat);
-          const awList = await api.getAllAwards();
+          const awList = await api.getAllAwards().catch(() => []);
           setAllAwards(awList);
-          const ptsList = await api.getAllPointsBalances();
+          const ptsList = await api.getAllPointsBalances().catch(() => []);
           setAllPoints(ptsList);
+          const progs = await api.getWellnessPrograms().catch(() => []);
+          if (progs.length > 0) {
+            const lb = await api.getLeaderboard(progs[0].programID).catch(() => []);
+            setLeaderboard(lb);
+          }
         } else if (currentUser.role === 'Admin') {
           // Audit log list
-          const uList = await api.getUsers();
+          const uList = await api.getUsers().catch(() => []);
           setAllUsers(uList);
           
           // Let's fetch some audit logs or create one
@@ -478,6 +518,13 @@ export default function App() {
       const response = await api.login({ email: loginEmail, password: loginPassword });
       setAuthToken(response.token);
       localStorage.setItem('wellbeing360_user', JSON.stringify(response));
+      if (response.role === 'Admin') {
+        localStorage.setItem('wellbeing360_is_admin_mode', 'true');
+        setIsAdminMode(true);
+      } else {
+        localStorage.setItem('wellbeing360_is_admin_mode', 'false');
+        setIsAdminMode(false);
+      }
       setCurrentUser(response);
       setCurrentUserId(response.userID);
       setView('app');
@@ -672,6 +719,31 @@ export default function App() {
     }
   };
 
+  // Recognition Manager: Submit Milestone Award
+  const handleMilestoneAwardSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMilestoneAward.recipientID || !newMilestoneAward.message) {
+      setApiError('Please select an employee and enter a message.');
+      return;
+    }
+    try {
+      setApiError(null);
+      await api.nominateAward({
+        recipientID: newMilestoneAward.recipientID,
+        category: 'ManagerNomination',
+        badgeName: newMilestoneAward.milestoneType,
+        pointsAwarded: newMilestoneAward.points,
+        message: newMilestoneAward.message
+      });
+      showSuccess(`Milestone award of ${newMilestoneAward.points} points given successfully!`);
+      triggerConfetti();
+      setNewMilestoneAward({ recipientID: 0, points: 500, message: '', milestoneType: '5 Years Service' });
+      triggerRefresh();
+    } catch (err: any) {
+      setApiError(err.message);
+    }
+  };
+
   // Employee: Redeem Item
   const handleRedeem = async (itemId: number) => {
     try {
@@ -693,9 +765,9 @@ export default function App() {
       await api.createPlan({
         ...newPlan,
         effectiveDate: new Date().toISOString(),
-        status: 'Active'
+        status: 'Pending FM Approval'
       });
-      showSuccess(`Benefit Plan '${newPlan.planName}' configured successfully.`);
+      showSuccess(`Benefit Plan '${newPlan.planName}' configured successfully, pending Finance Manager approval.`);
       setNewPlan({ planName: '', planType: 'GroupHealthInsurance', eligibilityGrade: 'All', employeeContribution: 50, employerContribution: 200, coverageLimit: 5000 });
       triggerRefresh();
     } catch (err: any) {
@@ -749,9 +821,9 @@ export default function App() {
       setApiError(null);
       await api.createChallenge({
         ...newChallenge,
-        status: 'Active'
+        status: 'Pending FM Approval'
       });
-      showSuccess(`Challenge '${newChallenge.challengeName}' added.`);
+      showSuccess(`Wellness Challenge '${newChallenge.challengeName}' added, pending Finance Executive approval.`);
       setNewChallenge({ programID: 0, challengeName: '', activityType: 'Steps', dailyTarget: 10000, duration: 7, pointsPerCompletion: 100 });
       triggerRefresh();
     } catch (err: any) {
@@ -842,6 +914,33 @@ export default function App() {
             </h1>
             <p className="text-xs uppercase tracking-widest text-foreground-dim font-bold mt-1">Benefits & Wellness Portal</p>
           </div>
+
+          {/* Quick Demo Login selector */}
+          {users.length > 0 && (
+            <div className="mb-6 p-4 border border-glass bg-card">
+              <label className="text-[11px] font-semibold text-foreground-muted block mb-1.5 uppercase tracking-wider">Quick Demo Login Persona Selection:</label>
+              <select
+                onChange={async (e) => {
+                  const val = e.target.value;
+                  if (!val) return;
+                  const selected = users.find(u => u.userID === parseInt(val));
+                  if (selected) {
+                    setLoginEmail(selected.email);
+                    setLoginPassword('password');
+                  }
+                }}
+                className="custom-select text-xs"
+                defaultValue=""
+              >
+                <option value="">-- Choose Seeded Account (Maps Role & Dept) --</option>
+                {users.map(u => (
+                  <option key={u.userID} value={u.userID}>
+                    {u.name} — {u.role} ({u.departmentID || 'N/A'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleLoginSubmit} className="space-y-5">
@@ -1069,7 +1168,7 @@ export default function App() {
           </div>
 
           {/* Central Mode Switcher for demo ease of testing */}
-          {currentUser?.role === 'Admin' && (
+          {isAdminMode && (
             <div className="flex items-center gap-3 glass-panel px-4 py-2 border-glass">
               <span className="text-xs text-foreground-muted font-medium flex items-center gap-1.5">
                 <RefreshCw className="w-3.5 h-3.5 text-secondary" /> Act As:
@@ -1081,7 +1180,7 @@ export default function App() {
               >
                 {users.map(u => (
                   <option key={u.userID} value={u.userID} className="bg-app text-black">
-                    {u.name} ({u.role})
+                    {u.name} ({u.role} — {u.departmentID})
                   </option>
                 ))}
               </select>
@@ -1144,8 +1243,10 @@ export default function App() {
                   setAuthToken('');
                   localStorage.removeItem('wellbeing360_token');
                   localStorage.removeItem('wellbeing360_user');
+                  localStorage.removeItem('wellbeing360_is_admin_mode');
                   setCurrentUser(null);
                   setCurrentUserId(0);
+                  setIsAdminMode(false);
                   setView('login');
                 }}
                 className="ml-2 px-3 py-1.5  border border-glass text-xs font-semibold text-foreground-muted hover:text-black hover:bg-card-hover transition"
@@ -1296,70 +1397,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Recognition Panel */}
-                  <div className="glass-panel p-6 border-glass">
-                    <h3 className="font-heading font-semibold text-lg text-black mb-4 flex items-center gap-2">
-                      <Award className="text-accent w-5 h-5" /> Recognition & Badge Wall
-                    </h3>
-                    <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-                      {awardsReceived.length === 0 ? (
-                        <p className="text-sm text-foreground-muted">No badges received yet. Keep up the great work and inspire your team!</p>
-                      ) : (
-                        awardsReceived.map(aw => {
-                          const react = awardReactions[aw.awardID] || { likes: Math.abs(aw.awardID % 5) + 3, claps: Math.abs(aw.awardID % 3) + 1, stars: Math.abs(aw.awardID % 4), userClicked: {} };
-                          return (
-                            <div key={aw.awardID} className="p-3  bg-card-hover border border-glass flex items-start gap-3">
-                              <div className="w-10 h-10 shrink-0  bg-accent/20 flex items-center justify-center border border-accent">
-                                <Star className="text-accent w-5 h-5" />
-                              </div>
-                              <div className="flex-1">
-                                <div className="flex justify-between items-start">
-                                  <h4 className="text-sm font-bold text-black">{aw.badgeName}</h4>
-                                  <span className="text-xs text-secondary font-bold">+{aw.pointsAwarded} pts</span>
-                                </div>
-                                <p className="text-xs text-foreground-muted mt-1">"{aw.message}"</p>
-                                <span className="text-[10px] text-foreground-dim mt-2 block">Awarded on {new Date(aw.awardDate).toLocaleDateString()}</span>
-                                
-                                {/* Emoji Reactions Bar */}
-                                <div className="flex gap-2 mt-3 pt-2 border-t border-glass/20">
-                                  <button 
-                                    onClick={() => handleReact(aw.awardID, 'likes')}
-                                    className={`text-[10px] flex items-center gap-1.5 px-2.5 py-1  border transition-all ${
-                                      react.userClicked['likes'] 
-                                        ? 'bg-accent/10 border-accent text-accent' 
-                                        : 'bg-glass border-glass/40 text-foreground-muted hover:text-black hover:bg-glass'
-                                    }`}
-                                  >
-                                    ❤️ {react.likes}
-                                  </button>
-                                  <button 
-                                    onClick={() => handleReact(aw.awardID, 'claps')}
-                                    className={`text-[10px] flex items-center gap-1.5 px-2.5 py-1  border transition-all ${
-                                      react.userClicked['claps'] 
-                                        ? 'bg-secondary/10 border-secondary text-secondary' 
-                                        : 'bg-glass border-glass/40 text-foreground-muted hover:text-black hover:bg-glass'
-                                    }`}
-                                  >
-                                    👏 {react.claps}
-                                  </button>
-                                  <button 
-                                    onClick={() => handleReact(aw.awardID, 'stars')}
-                                    className={`text-[10px] flex items-center gap-1.5 px-2.5 py-1  border transition-all ${
-                                      react.userClicked['stars'] 
-                                        ? 'bg-warning/10 border-warning text-warning' 
-                                        : 'bg-glass border-glass/40 text-foreground-muted hover:text-black hover:bg-glass'
-                                    }`}
-                                  >
-                                    ⭐ {react.stars}
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
+                  {/* Recognition Panel has been moved to the Recognition Manager Dashboard */}
                 </div>
               </div>
             )}
@@ -2146,6 +2184,92 @@ export default function App() {
                 </form>
               </div>
             </div>
+
+            {/* HR Admin Management Reports & Configuration Logs */}
+            <div className="grid grid-cols-1 gap-8 mt-8">
+              {/* Plans Log */}
+              <div className="glass-panel p-6 border-glass">
+                <h3 className="font-heading font-bold text-lg text-black mb-4">Configured Benefit Plans & Approvals</h3>
+                <div className="table-container">
+                  <table className="custom-table">
+                    <thead>
+                      <tr>
+                        <th>Plan ID</th>
+                        <th>Plan Name</th>
+                        <th>Type</th>
+                        <th>Grades</th>
+                        <th>Employee Pay</th>
+                        <th>Employer Pay</th>
+                        <th>Limit</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {plans.map(p => (
+                        <tr key={p.planID}>
+                          <td className="text-black font-semibold">#{p.planID}</td>
+                          <td className="text-black font-medium">{p.planName}</td>
+                          <td>{p.planType}</td>
+                          <td>{p.eligibilityGrade}</td>
+                          <td>${p.employeeContribution}</td>
+                          <td>${p.employerContribution}</td>
+                          <td>${p.coverageLimit}</td>
+                          <td>
+                            <span className={`badge ${p.status === 'Active' ? 'badge-active' : 'badge-pending'}`}>
+                              {p.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Enrollment Log */}
+              <div className="glass-panel p-6 border-glass">
+                <h3 className="font-heading font-bold text-lg text-black mb-4">All Employee Enrolled Benefits</h3>
+                <div className="table-container">
+                  <table className="custom-table">
+                    <thead>
+                      <tr>
+                        <th>Enrolment ID</th>
+                        <th>Employee</th>
+                        <th>Department</th>
+                        <th>Benefit Plan</th>
+                        <th>Employee Contribution</th>
+                        <th>Coverage Option</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allEnrolments.map(e => (
+                        <tr key={e.enrolmentID}>
+                          <td className="text-black font-semibold">#{e.enrolmentID}</td>
+                          <td>{e.employee?.name || `Employee #${e.employeeID}`}</td>
+                          <td>{e.employee?.departmentID || 'N/A'}</td>
+                          <td className="text-black font-medium">{e.benefitPlan?.planName || `Plan #${e.planID}`}</td>
+                          <td>${e.employeeContributionAmount}</td>
+                          <td>{e.coverageOption}</td>
+                          <td>
+                            <span className={`badge ${e.status === 'Active' ? 'badge-active' : 'badge-pending'}`}>
+                              {e.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      {allEnrolments.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="text-center py-6 text-foreground-muted">
+                            No enrolled benefits found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -2460,6 +2584,91 @@ export default function App() {
                 })()}
               </div>
             </div>
+
+            {/* Wellness Coordinator Challenge Statuses */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+              <div className="glass-panel p-6 border-glass">
+                <h3 className="font-heading font-bold text-lg text-black mb-4">Wellness Challenges Log & Statuses</h3>
+                <div className="table-container max-h-96 overflow-y-auto">
+                  <table className="custom-table">
+                    <thead>
+                      <tr>
+                        <th>Challenge Name</th>
+                        <th>Activity Type</th>
+                        <th>Daily Target</th>
+                        <th>Points</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allChallenges.map(c => (
+                        <tr key={c.challengeID}>
+                          <td className="text-black font-medium">{c.challengeName}</td>
+                          <td>{c.activityType}</td>
+                          <td>{c.dailyTarget}</td>
+                          <td className="text-secondary font-bold">+{c.pointsPerCompletion} pts</td>
+                          <td>
+                            <span className={`badge ${c.status === 'Active' ? 'badge-active' : 'badge-pending'}`}>
+                              {c.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      {allChallenges.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="text-center py-6 text-foreground-dim text-xs">
+                            No challenges found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Leaderboard Calculation Engine */}
+              <div className="glass-panel p-6 border-glass">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-heading font-bold text-lg text-black flex items-center gap-2">
+                    <Trophy className="text-warning w-5 h-5" /> Leaderboard Engine
+                  </h3>
+                  <button
+                    onClick={async () => {
+                      try {
+                        setApiError(null);
+                        if (wellnessPrograms.length > 0) {
+                          const lb = await api.getLeaderboard(wellnessPrograms[0].programID);
+                          setLeaderboard(lb);
+                          showSuccess("Leaderboard rankings successfully computed and refreshed!");
+                        } else {
+                          showSuccess("No active program to compute leaderboard.");
+                        }
+                      } catch (err: any) {
+                        setApiError(err.message);
+                      }
+                    }}
+                    className="py-1.5 px-4 gradient-btn text-xs font-bold"
+                  >
+                    Compute Rankings
+                  </button>
+                </div>
+                <p className="text-xs text-foreground-muted mb-4">Recalculate ranks based on all verified employee activity logs.</p>
+                <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                  {leaderboard.map((entry, index) => (
+                    <div key={entry.employeeID || index} className="flex items-center justify-between p-2.5 bg-card border border-glass">
+                      <div className="flex items-center gap-3">
+                        <span className={`w-6 h-6 flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-black text-white' : 'bg-glass text-black'}`}>{index + 1}</span>
+                        <span className="text-sm font-semibold">{entry.employeeName} ({entry.departmentID})</span>
+                      </div>
+                      <span className="text-sm text-black font-bold">{entry.totalPoints} pts</span>
+                    </div>
+                  ))}
+                  {leaderboard.length === 0 && (
+                    <p className="text-xs text-foreground-dim text-center py-4">No leaderboard rankings available yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -2637,6 +2846,281 @@ export default function App() {
                 </table>
               </div>
             </div>
+
+            {/* Approvals and Requests Center */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+              {/* Plans Approval */}
+              <div className="glass-panel p-5 border-glass space-y-4">
+                <h3 className="font-heading font-bold text-base text-black">Benefit Plans Pending Approval</h3>
+                <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                  {plans.filter(p => p.status === 'Pending FM Approval').length === 0 ? (
+                    <p className="text-xs text-foreground-muted">No pending plan approvals.</p>
+                  ) : (
+                    plans.filter(p => p.status === 'Pending FM Approval').map(p => (
+                      <div key={p.planID} className="p-3 bg-card border border-glass flex flex-col justify-between gap-2">
+                        <div>
+                          <h4 className="text-xs font-bold text-black">{p.planName}</h4>
+                          <p className="text-[10px] text-foreground-muted mt-0.5">{p.planType} | Limit: ${p.coverageLimit}</p>
+                          <p className="text-[10px] text-foreground-muted">Employer Contribution: ${p.employerContribution}</p>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            try {
+                              setApiError(null);
+                              await api.updatePlanStatus(p.planID, 'Active');
+                              showSuccess(`Benefit Plan '${p.planName}' approved and activated!`);
+                              triggerRefresh();
+                            } catch (err: any) {
+                              setApiError(err.message);
+                            }
+                          }}
+                          className="py-1 px-3 gradient-btn text-[10px]"
+                        >
+                          Approve Plan
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Enrollments Approval */}
+              <div className="glass-panel p-5 border-glass space-y-4">
+                <h3 className="font-heading font-bold text-base text-black">Enrollments Pending Approval</h3>
+                <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                  {allEnrolments.filter(e => e.status === 'Submitted' || e.status === 'Pending FM Approval').length === 0 ? (
+                    <p className="text-xs text-foreground-muted">No pending enrollment approvals.</p>
+                  ) : (
+                    allEnrolments.filter(e => e.status === 'Submitted' || e.status === 'Pending FM Approval').map(e => (
+                      <div key={e.enrolmentID} className="p-3 bg-card border border-glass flex flex-col justify-between gap-2">
+                        <div>
+                          <h4 className="text-xs font-bold text-black">{e.benefitPlan?.planName || `Plan #${e.planID}`}</h4>
+                          <p className="text-[10px] text-foreground-muted mt-0.5">Employee: {e.employee?.name || `User #${e.employeeID}`}</p>
+                          <p className="text-[10px] text-foreground-muted">Coverage: {e.coverageOption} | Premium: ${e.employeeContributionAmount}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={async () => {
+                              try {
+                                setApiError(null);
+                                await api.updateEnrolmentStatus(e.enrolmentID, 'Active');
+                                showSuccess(`Enrollment approved!`);
+                                triggerRefresh();
+                              } catch (err: any) {
+                                setApiError(err.message);
+                              }
+                            }}
+                            className="py-1 px-3 gradient-btn text-[10px] flex-1"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={async () => {
+                              try {
+                                setApiError(null);
+                                await api.updateEnrolmentStatus(e.enrolmentID, 'Declined');
+                                showSuccess(`Enrollment declined.`);
+                                triggerRefresh();
+                              } catch (err: any) {
+                                setApiError(err.message);
+                              }
+                            }}
+                            className="py-1 px-3 border border-glass text-black text-[10px] font-semibold flex-1"
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Challenges Approval */}
+              <div className="glass-panel p-5 border-glass space-y-4">
+                <h3 className="font-heading font-bold text-base text-black">Wellness Challenges Pending Approval</h3>
+                <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                  {allChallenges.filter(c => c.status === 'Pending FM Approval').length === 0 ? (
+                    <p className="text-xs text-foreground-muted">No pending challenge approvals.</p>
+                  ) : (
+                    allChallenges.filter(c => c.status === 'Pending FM Approval').map(c => (
+                      <div key={c.challengeID} className="p-3 bg-card border border-glass flex flex-col justify-between gap-2">
+                        <div>
+                          <h4 className="text-xs font-bold text-black">{c.challengeName}</h4>
+                          <p className="text-[10px] text-foreground-muted mt-0.5">Type: {c.activityType} | Target: {c.dailyTarget}</p>
+                          <p className="text-[10px] text-foreground-muted">Reward: {c.pointsPerCompletion} pts</p>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            try {
+                              setApiError(null);
+                              await api.updateChallengeStatus(c.challengeID, 'Active');
+                              showSuccess(`Wellness Challenge approved and published!`);
+                              triggerRefresh();
+                            } catch (err: any) {
+                              setApiError(err.message);
+                            }
+                          }}
+                          className="py-1 px-3 gradient-btn text-[10px]"
+                        >
+                          Approve Challenge
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Premium Costs and Budget Monitor */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+              <div className="glass-panel p-6 border-glass md:col-span-1 space-y-4">
+                <h3 className="font-heading font-bold text-lg text-black">Benefits Budget Monitor</h3>
+                {(() => {
+                  const budgetTotal = 500000;
+                  const activeEnrolments = allEnrolments.filter(e => e.status === 'Active');
+                  const totalEmployerPremium = activeEnrolments.reduce((sum, e) => {
+                    const plan = plans.find(p => p.planID === e.planID);
+                    return sum + (plan?.employerContribution || 0);
+                  }, 0);
+                  const totalEmployeePremium = activeEnrolments.reduce((sum, e) => {
+                    return sum + e.employeeContributionAmount;
+                  }, 0);
+                  const percent = Math.min(100, Math.round((totalEmployerPremium / budgetTotal) * 100));
+                  return (
+                    <div className="space-y-4">
+                      <div>
+                        <span className="text-[10px] text-foreground-dim uppercase tracking-wider font-bold">Annual Benefits Budget</span>
+                        <p className="text-3xl font-bold font-heading text-black mt-1">$500,000</p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-foreground-dim uppercase tracking-wider font-bold">Allocated Employer Premiums</span>
+                        <p className="text-xl font-bold font-heading text-black mt-1">${totalEmployerPremium}</p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-foreground-dim uppercase tracking-wider font-bold">Employee Shared Contributions</span>
+                        <p className="text-xl font-bold font-heading text-secondary mt-1">${totalEmployeePremium}</p>
+                      </div>
+                      <div className="space-y-1.5 pt-2">
+                        <div className="flex justify-between text-xs font-semibold text-foreground-muted">
+                          <span>Budget Consumption</span>
+                          <span>{percent}%</span>
+                        </div>
+                        <div className="w-full bg-glass border border-glass h-4 overflow-hidden">
+                          <div className="bg-black h-full" style={{ width: `${percent}%` }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Premium Cost Details Log */}
+              <div className="glass-panel p-6 border-glass md:col-span-2 space-y-4">
+                <h3 className="font-heading font-bold text-lg text-black">Premium Costs Tracker (Active Enrolments)</h3>
+                <div className="table-container max-h-72 overflow-y-auto">
+                  <table className="custom-table">
+                    <thead>
+                      <tr>
+                        <th>Employee</th>
+                        <th>Benefit Plan</th>
+                        <th>Option</th>
+                        <th>Employee Pay</th>
+                        <th>Employer Pay</th>
+                        <th>Total Premium</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allEnrolments.filter(e => e.status === 'Active').map(e => {
+                        const plan = plans.find(p => p.planID === e.planID);
+                        const employerPay = plan?.employerContribution || 0;
+                        const employeePay = e.employeeContributionAmount;
+                        const total = employerPay + employeePay;
+                        return (
+                          <tr key={e.enrolmentID}>
+                            <td className="text-black font-semibold">{e.employee?.name || `User #${e.employeeID}`}</td>
+                            <td>{e.benefitPlan?.planName || `Plan #${e.planID}`}</td>
+                            <td>{e.coverageOption}</td>
+                            <td>${employeePay}</td>
+                            <td>${employerPay}</td>
+                            <td className="font-bold text-black">${total}</td>
+                            <td>
+                              <span className="badge badge-active">{e.status}</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {allEnrolments.filter(e => e.status === 'Active').length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="text-center py-6 text-foreground-dim text-xs">
+                            No approved, active enrollments found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Reimbursement Claims Section */}
+            <div className="glass-panel p-6 border-glass mt-8">
+              <h3 className="font-heading font-bold text-lg text-black mb-4">Benefits Reimbursement Claims Approvals</h3>
+              <div className="table-container">
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Claim ID</th>
+                      <th>Employee Name</th>
+                      <th>Expense Type</th>
+                      <th>Claim Amount</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reimbursementClaims.map(claim => (
+                      <tr key={claim.claimID}>
+                        <td className="text-black font-semibold">#{claim.claimID}</td>
+                        <td className="font-medium">{claim.employeeName}</td>
+                        <td>{claim.expenseType}</td>
+                        <td className="font-bold">${claim.amount}</td>
+                        <td>
+                          <span className={`badge ${claim.status === 'Approved' ? 'badge-active' : claim.status === 'Pending' ? 'badge-pending' : 'badge-error'}`}>
+                            {claim.status}
+                          </span>
+                        </td>
+                        <td>
+                          {claim.status === 'Pending' && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  setReimbursementClaims(prev => prev.map(c => c.claimID === claim.claimID ? { ...c, status: 'Approved' } : c));
+                                  showSuccess(`Reimbursement Claim #${claim.claimID} approved!`);
+                                }}
+                                className="py-1 px-2.5 bg-black text-white text-[10px] uppercase font-bold"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setReimbursementClaims(prev => prev.map(c => c.claimID === claim.claimID ? { ...c, status: 'Rejected' } : c));
+                                  showSuccess(`Reimbursement Claim #${claim.claimID} rejected.`);
+                                }}
+                                className="py-1 px-2.5 border border-glass text-black text-[10px] font-semibold"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
 
@@ -2694,6 +3178,16 @@ export default function App() {
                   }`}
                 >
                   Employee Points Balances
+                </button>
+                <button
+                  onClick={() => setRecognitionTab('feed')}
+                  className={`py-2.5 px-4 font-heading font-bold text-xs uppercase tracking-wider border-b-2 transition-all ${
+                    recognitionTab === 'feed'
+                      ? 'border-black text-black'
+                      : 'border-transparent text-foreground-dim hover:text-black'
+                  }`}
+                >
+                  Recognition Wall Feed
                 </button>
                 <button
                   onClick={() => setRecognitionTab('catalog')}
@@ -2810,70 +3304,213 @@ export default function App() {
 
               {/* Tab Panel: Reward Points Balances */}
               {recognitionTab === 'points' && (
-                <div className="glass-panel p-6 border-glass space-y-4 animate-fade-in">
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div>
-                      <h3 className="font-heading font-bold text-lg text-black">Reward Points Balances</h3>
-                      <p className="text-xs text-foreground-dim mt-0.5">Active points breakdown for all employee portal accounts</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-fade-in">
+                  <div className="glass-panel p-6 border-glass space-y-4 md:col-span-2">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                      <div>
+                        <h3 className="font-heading font-bold text-lg text-black">Reward Points Balances</h3>
+                        <p className="text-xs text-foreground-dim mt-0.5">Active points breakdown for all employee portal accounts</p>
+                      </div>
+
+                      {/* Search */}
+                      <div className="relative w-full md:w-auto">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-foreground-dim pointer-events-none" />
+                        <input 
+                          type="text"
+                          placeholder="Search employee by name..."
+                          value={pointsSearchQuery}
+                          onChange={(e) => setPointsSearchQuery(e.target.value)}
+                          className="custom-input pl-9 text-xs py-2 w-full md:w-64"
+                        />
+                      </div>
                     </div>
 
-                    {/* Search */}
-                    <div className="relative w-full md:w-auto">
-                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-foreground-dim pointer-events-none" />
-                      <input 
-                        type="text"
-                        placeholder="Search employee by name..."
-                        value={pointsSearchQuery}
-                        onChange={(e) => setPointsSearchQuery(e.target.value)}
-                        className="custom-input pl-9 text-xs py-2 w-full md:w-64"
-                      />
+                    <div className="table-container">
+                      {(() => {
+                        const filtered = allPoints.filter(p => {
+                          const query = pointsSearchQuery.toLowerCase().trim();
+                          return p.employeeName.toLowerCase().includes(query) || p.employeeID.toString().includes(query);
+                        });
+
+                        if (filtered.length === 0) {
+                          return (
+                            <div className="text-center py-8 text-foreground-muted text-sm bg-card-hover border border-dashed border-glass/40">
+                              No employee points balances found.
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <table className="custom-table">
+                            <thead>
+                              <tr>
+                                <th>Points ID</th>
+                                <th>Employee ID</th>
+                                <th>Employee Name</th>
+                                <th>Total Earned</th>
+                                <th>Total Redeemed</th>
+                                <th>Current Balance</th>
+                                <th>Last Updated</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filtered.map(p => (
+                                <tr key={p.pointsID} className="hover:bg-card-hover transition-colors">
+                                  <td className="text-black font-semibold">#{p.pointsID}</td>
+                                  <td>EMP #{p.employeeID}</td>
+                                  <td className="text-black font-medium">{p.employeeName}</td>
+                                  <td className="text-success font-semibold">+{p.totalEarned} pts</td>
+                                  <td className="text-foreground-muted">-{p.totalRedeemed} pts</td>
+                                  <td className="text-secondary font-bold">{p.balance} pts</td>
+                                  <td>{new Date(p.lastUpdated).toLocaleDateString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        );
+                      })()}
                     </div>
                   </div>
 
-                  <div className="table-container">
-                    {(() => {
-                      const filtered = allPoints.filter(p => {
-                        const query = pointsSearchQuery.toLowerCase().trim();
-                        return p.employeeName.toLowerCase().includes(query) || p.employeeID.toString().includes(query);
-                      });
+                  {/* Milestone Rewards Form */}
+                  <div className="glass-panel p-6 border-glass h-fit md:col-span-1">
+                    <h3 className="font-heading font-bold text-lg text-black mb-4 flex items-center gap-2">
+                      <Gift className="text-secondary" /> Milestone Reward
+                    </h3>
+                    <form onSubmit={handleMilestoneAwardSubmit} className="space-y-4">
+                      <div>
+                        <label className="text-xs text-foreground-muted block mb-1">Select Employee</label>
+                        <select 
+                          value={newMilestoneAward.recipientID} 
+                          onChange={(e) => setNewMilestoneAward({ ...newMilestoneAward, recipientID: parseInt(e.target.value) })}
+                          className="custom-select"
+                        >
+                          <option value="0">Select Employee...</option>
+                          {users.filter(u => u.role === 'Employee').map(u => (
+                            <option key={u.userID} value={u.userID}>{u.name} ({u.departmentID})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-foreground-muted block mb-1">Milestone Type</label>
+                        <select 
+                          value={newMilestoneAward.milestoneType} 
+                          onChange={(e) => setNewMilestoneAward({ ...newMilestoneAward, milestoneType: e.target.value })}
+                          className="custom-select"
+                        >
+                          <option value="5 Years Service">5 Years Service Milestone</option>
+                          <option value="10 Years Service">10 Years Service Milestone</option>
+                          <option value="Outstanding Performance">Outstanding Annual Performance</option>
+                          <option value="Wellness Champion">Wellness Campaign Champion</option>
+                          <option value="Peer Mentor Leader">Peer Mentor Leader Award</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-foreground-muted block mb-1">Reward Points</label>
+                        <input 
+                          type="number" 
+                          value={newMilestoneAward.points} 
+                          onChange={(e) => setNewMilestoneAward({ ...newMilestoneAward, points: parseInt(e.target.value) })}
+                          className="custom-input" 
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-foreground-muted block mb-1">Congratulatory Message</label>
+                        <textarea 
+                          required 
+                          rows={3} 
+                          value={newMilestoneAward.message} 
+                          placeholder="Write achievement details..."
+                          onChange={(e) => setNewMilestoneAward({ ...newMilestoneAward, message: e.target.value })}
+                          className="custom-textarea text-xs"
+                        />
+                      </div>
+                      <button type="submit" className="w-full py-3 font-semibold gradient-btn">
+                        Award Milestone Reward
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              )}
 
-                      if (filtered.length === 0) {
-                        return (
-                          <div className="text-center py-8 text-foreground-muted text-sm bg-card-hover border border-dashed border-glass/40">
-                            No employee points balances found.
-                          </div>
-                        );
-                      }
+              {/* Tab Panel: Recognition Wall Feed */}
+              {recognitionTab === 'feed' && (
+                <div className="glass-panel p-6 border-glass space-y-6 animate-fade-in">
+                  <div>
+                    <h3 className="font-heading font-bold text-lg text-black">Recognition Wall Feed</h3>
+                    <p className="text-xs text-foreground-dim mt-0.5">Celebrate and react to team recognition actions and milestone rewards</p>
+                  </div>
 
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {allAwards.map(aw => {
+                      const reactions = awardReactions[aw.awardID] || {
+                        likes: Math.abs(aw.awardID % 5) + 3,
+                        claps: Math.abs(aw.awardID % 3) + 1,
+                        stars: Math.abs(aw.awardID % 4),
+                        userClicked: {}
+                      };
                       return (
-                        <table className="custom-table">
-                          <thead>
-                            <tr>
-                              <th>Points ID</th>
-                              <th>Employee ID</th>
-                              <th>Employee Name</th>
-                              <th>Total Earned</th>
-                              <th>Total Redeemed</th>
-                              <th>Current Balance</th>
-                              <th>Last Updated</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filtered.map(p => (
-                              <tr key={p.pointsID} className="hover:bg-card-hover transition-colors">
-                                <td className="text-black font-semibold">#{p.pointsID}</td>
-                                <td>EMP #{p.employeeID}</td>
-                                <td className="text-black font-medium">{p.employeeName}</td>
-                                <td className="text-success font-semibold">+{p.totalEarned} pts</td>
-                                <td className="text-foreground-muted">-{p.totalRedeemed} pts</td>
-                                <td className="text-secondary font-bold">{p.balance} pts</td>
-                                <td>{new Date(p.lastUpdated).toLocaleDateString()}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                        <div key={aw.awardID} className="p-5 bg-card border border-glass flex flex-col justify-between space-y-4">
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <span className="text-[10px] text-accent uppercase tracking-wider font-bold">{aw.category}</span>
+                                <h4 className="font-heading font-bold text-sm text-black mt-0.5">
+                                  {aw.recipientName}
+                                </h4>
+                              </div>
+                              <span className="text-[10px] text-foreground-dim">{new Date(aw.awardDate).toLocaleDateString()}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="badge badge-primary">{aw.badgeName}</span>
+                              <span className="text-secondary font-bold text-xs">+{aw.pointsAwarded} pts</span>
+                            </div>
+                            <p className="text-xs text-foreground-muted italic font-serif">"{aw.message}"</p>
+                            <div className="text-[10px] text-foreground-dim">
+                              Nominated by <span className="font-semibold text-black">{aw.nominatorName}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-3 pt-2 border-t border-glass/30">
+                            <button
+                              onClick={() => handleReact(aw.awardID, 'likes')}
+                              className={`flex items-center gap-1.5 py-1 px-2.5 text-xs border ${
+                                reactions.userClicked['likes']
+                                  ? 'bg-secondary/15 border-secondary text-secondary font-bold'
+                                  : 'bg-glass border-glass text-foreground-muted hover:text-black'
+                              }`}
+                            >
+                              <span>👍</span> {reactions.likes}
+                            </button>
+                            <button
+                              onClick={() => handleReact(aw.awardID, 'claps')}
+                              className={`flex items-center gap-1.5 py-1 px-2.5 text-xs border ${
+                                reactions.userClicked['claps']
+                                  ? 'bg-secondary/15 border-secondary text-secondary font-bold'
+                                  : 'bg-glass border-glass text-foreground-muted hover:text-black'
+                              }`}
+                            >
+                              <span>👏</span> {reactions.claps}
+                            </button>
+                            <button
+                              onClick={() => handleReact(aw.awardID, 'stars')}
+                              className={`flex items-center gap-1.5 py-1 px-2.5 text-xs border ${
+                                reactions.userClicked['stars']
+                                  ? 'bg-secondary/15 border-secondary text-secondary font-bold'
+                                  : 'bg-glass border-glass text-foreground-muted hover:text-black'
+                              }`}
+                            >
+                              <span>⭐</span> {reactions.stars}
+                            </button>
+                          </div>
+                        </div>
                       );
-                    })()}
+                    })}
+                    {allAwards.length === 0 && (
+                      <div className="col-span-2 text-center py-8 text-foreground-muted text-sm bg-card-hover border border-dashed border-glass/40">
+                        No recognition feed items found.
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

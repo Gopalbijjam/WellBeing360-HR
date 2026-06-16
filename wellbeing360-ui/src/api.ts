@@ -117,5 +117,15 @@ export const api = {
 
     // Notifications
     getNotifications: () => request('notifications'),
-    markNotificationRead: (id: number) => request(`notifications/${id}/read`, { method: 'PUT' })
+    markNotificationRead: (id: number) => request(`notifications/${id}/read`, { method: 'PUT' }),
+
+    // New Approvals and Admin Masquerade APIs
+    getAllEnrolments: () => request('enrolments/all-enrolments'),
+    updateEnrolmentStatus: (enrolmentId: number, status: string) => 
+        request(`enrolments/${enrolmentId}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+    updatePlanStatus: (planId: number, status: string) => 
+        request(`benefitplans/${planId}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+    updateChallengeStatus: (challengeId: number, status: string) => 
+        request(`wellness/challenges/${challengeId}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+    getAllChallenges: () => request('wellness/challenges/all')
 };
