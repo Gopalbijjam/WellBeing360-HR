@@ -9,8 +9,9 @@ namespace WellBeing360.Infrastructure.Data
     {
         public static void Initialize(WellBeingContext context)
         {
-            context.Database.EnsureDeleted();
+          //  context.Database.EnsureDeleted();
             context.Database.EnsureCreated();
+            if (context.Users.Any()) return;
 
             // 1. Seed 20 Users
             var users = new List<User>
