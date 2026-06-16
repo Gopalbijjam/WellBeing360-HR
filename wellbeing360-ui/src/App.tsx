@@ -915,33 +915,6 @@ export default function App() {
             <p className="text-xs uppercase tracking-widest text-foreground-dim font-bold mt-1">Benefits & Wellness Portal</p>
           </div>
 
-          {/* Quick Demo Login selector */}
-          {users.length > 0 && (
-            <div className="mb-6 p-4 border border-glass bg-card">
-              <label className="text-[11px] font-semibold text-foreground-muted block mb-1.5 uppercase tracking-wider">Quick Demo Login Persona Selection:</label>
-              <select
-                onChange={async (e) => {
-                  const val = e.target.value;
-                  if (!val) return;
-                  const selected = users.find(u => u.userID === parseInt(val));
-                  if (selected) {
-                    setLoginEmail(selected.email);
-                    setLoginPassword('password');
-                  }
-                }}
-                className="custom-select text-xs"
-                defaultValue=""
-              >
-                <option value="">-- Choose Seeded Account (Maps Role & Dept) --</option>
-                {users.map(u => (
-                  <option key={u.userID} value={u.userID}>
-                    {u.name} — {u.role} ({u.departmentID || 'N/A'})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
           {/* Form */}
           <form onSubmit={handleLoginSubmit} className="space-y-5">
             {apiError && (
