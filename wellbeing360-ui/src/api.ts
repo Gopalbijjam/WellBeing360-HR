@@ -127,5 +127,6 @@ export const api = {
         request(`benefitplans/${planId}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
     updateChallengeStatus: (challengeId: number, status: string) => 
         request(`wellness/challenges/${challengeId}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
-    getAllChallenges: () => request('wellness/challenges/all')
+    getAllChallenges: () => request('wellness/challenges/all'),
+    getAuditLogs: () => request('reports/audit')
 };

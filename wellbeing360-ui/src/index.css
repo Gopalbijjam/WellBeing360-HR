@@ -1,36 +1,40 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --font-heading: 'Times New Roman', Times, serif;
-  --font-body: 'Times New Roman', Times, serif;
+  --font-heading: 'Inter', sans-serif;
+  --font-body: 'Inter', sans-serif;
 
-  /* Vibrant Executive Palette (Royal Blue, Deep Teal, and Violet) */
-  --bg-app: #f0f3ff;          /* Vibrant soft indigo-blue tint background */
+  /* Groww-Inspired Aesthetic Colors */
+  --bg-app: #f8fafc;
   --bg-card: #ffffff;
-  --bg-card-hover: #e0e7ff;    /* Vibrant soft indigo hover background */
-  --border-glass: #c7d2fe;     /* Soft indigo border instead of grey */
-  --border-glow: #2563eb;
+  --bg-card-hover: #f1f5f9;
+  --border-glass: #e2e8f0;
+  --border-glow: #00d09c;
   
-  --primary: #2563eb;          /* Royal Blue */
-  --primary-glow: rgba(37, 99, 235, 0.05);
-  --secondary: #0d9488;        /* Deep Teal */
-  --secondary-glow: rgba(13, 148, 136, 0.05);
-  --accent: #7c3aed;           /* Violet */
-  --accent-glow: rgba(124, 58, 237, 0.05);
+  --primary: #00d09c;          /* Groww Green */
+  --primary-hover: #00b087;
+  --secondary: #0f172a;        /* Deep Slate */
+  --accent: #5367ff;           /* Modern Blue-Violet */
   
-  --foreground: #1e1b4b;       /* Vibrant dark indigo */
-  --foreground-muted: #312e81; /* Indigo-800 */
-  --foreground-dim: #4338ca;   /* Indigo-700 */
-
-  --success: #16a34a;
-  --warning: #ca8a04;
-  --error: #dc2626;
+  --foreground: #0f172a;
+  --foreground-muted: #475569;
+  --foreground-dim: #64748b;
+  
+  --success: #00d09c;
+  --warning: #eab308;
+  --error: #f43f5e;
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Override global transitions for performance when scaling and for fast layouts */
+.no-transition {
+  transition: none !important;
 }
 
 body {
@@ -45,188 +49,121 @@ body {
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: var(--bg-app);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-glass);
-  border-radius: 0px;
+  background: #cbd5e1;
+  border-radius: 8px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--primary);
+  background: #94a3b8;
 }
 
-.glass-panel {
+/* Modern Card Layouts */
+.groww-card {
   background: var(--bg-card);
   border: 1px solid var(--border-glass);
-  border-radius: 0px;
-  box-shadow: none;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+}
+
+.groww-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  border-color: #cbd5e1;
 }
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.animate-float {
-  transform: none !important;
-}
-
-.pulse-card {
-  box-shadow: none !important;
-}
-
-/* Vibrant Typography Headers */
+/* Typography Helpers */
 .gradient-text {
-  background: none;
-  -webkit-background-clip: initial;
-  -webkit-text-fill-color: initial;
-  color: var(--primary);
+  background: linear-gradient(135deg, #00d09c 0%, #5367ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   font-family: var(--font-heading);
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 800;
 }
 
-.gradient-btn {
-  background: var(--primary);
-  color: #ffffff;
-  border: 1px solid var(--primary);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-size: 0.75rem;
-  border-radius: 0px;
-  cursor: pointer;
-  box-shadow: none;
-  position: relative;
-  overflow: hidden;
-}
-
+/* Form inputs */
 .custom-input, .custom-select, .custom-textarea {
   background: #ffffff;
-  border: 1px solid var(--border-glass);
+  border: 1px solid #d1d5db;
   color: var(--foreground);
   font-family: var(--font-body);
-  font-size: 0.8rem;
-  border-radius: 0px;
-  padding: 10px 12px;
+  font-size: 0.875rem;
+  border-radius: 8px;
+  padding: 10px 14px;
   outline: none;
   width: 100%;
 }
 
 .custom-input:focus, .custom-select:focus, .custom-textarea:focus {
   border-color: var(--primary);
-  box-shadow: none;
+  box-shadow: 0 0 0 3px rgba(0, 208, 156, 0.15);
 }
 
 .custom-input:read-only {
-  background: #f5f5f5;
+  background: #f8fafc;
   border-color: var(--border-glass);
   color: var(--foreground-dim);
+  cursor: not-allowed;
 }
 
-/* Grid Layout */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 20px;
+/* Table styling override */
+.custom-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
 }
 
-/* Vibrant Badges */
+.custom-table th {
+  background: #f8fafc;
+  color: var(--foreground-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 14px 16px;
+  font-size: 0.75rem;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.custom-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-glass);
+  font-size: 0.875rem;
+  color: var(--foreground-muted);
+  background: #ffffff;
+}
+
+.custom-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Custom badges */
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding: 4px 10px;
-  border-radius: 0px;
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border: 1px solid currentColor;
-}
-
-.badge-active { background: var(--success); color: #ffffff; border-color: var(--success); }
-.badge-pending { background: var(--warning); color: #ffffff; border-color: var(--warning); }
-.badge-error { background: var(--error); color: #ffffff; border-color: var(--error); }
-.badge-primary { background: var(--primary); color: #ffffff; border-color: var(--primary); }
-.badge-secondary { background: var(--secondary); color: #ffffff; border-color: var(--secondary); }
-
-/* Table System */
-.table-container {
-  overflow-x: auto;
-  border-radius: 0px;
-  border: 1px solid var(--border-glass);
-}
-
-.custom-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.custom-table th {
-  background: var(--primary);
-  color: #ffffff;
-  font-family: var(--font-heading);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 12px 16px;
+  border-radius: 9999px;
   font-size: 0.75rem;
-  border-bottom: 2px solid var(--accent);
+  font-weight: 600;
 }
 
-.custom-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border-glass);
-  font-size: 0.8rem;
-  color: var(--foreground-muted);
-}
-
-/* GLOBAL OVERRIDES: Force solid colors, Times New Roman, and disable transitions/hovers */
-* {
-  transition: none !important;
-  transition-property: none !important;
-  transition-duration: 0s !important;
-}
-
-*:hover {
-  transform: none !important;
-  scale: none !important;
-  box-shadow: none !important;
-}
-
-.gradient-btn:hover {
-  background: var(--accent) !important;
-  color: #ffffff !important;
-  border-color: var(--accent) !important;
-}
-
-/* Disable card hover background shifts to ensure static solid colors */
-.glass-panel:hover, .bg-card-hover:hover, tr:hover {
-  background-color: inherit !important;
-}
-
-/* Map bg-black classes to primary vibrant brand color */
-.bg-black {
-  background-color: var(--primary) !important;
-  color: #ffffff !important;
-}
-
-.bg-black * {
-  color: #ffffff !important;
-}
-
-/* Map text-black classes to vibrant deep indigo foreground */
-.text-black {
-  color: var(--foreground) !important;
-}
+.badge-active { background: rgba(0, 208, 156, 0.1); color: #00b087; }
+.badge-pending { background: rgba(234, 179, 8, 0.1); color: #ca8a04; }
+.badge-error { background: rgba(244, 63, 94, 0.1); color: #e11d48; }
+.badge-primary { background: rgba(83, 103, 255, 0.1); color: #5367ff; }
