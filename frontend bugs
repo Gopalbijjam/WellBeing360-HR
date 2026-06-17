@@ -1,0 +1,41 @@
+Login Page - > we need to map the role and department 
+role      dept 
+Employee  -> Full Time 
+          -> Part Time
+
+Hr Benefit Admin -> HR admin
+
+Finance Manager -> Finance Manager 
+
+Wellness Coordinator -> Wellness Coordinator 
+
+Recognition Manager -> Recognition Manager
+
+Admin -> Admin
+
+
+Employee dashboard -> peer to peer recognition board has move to the recognition manager dashboard 
+
+If employee have enrolled for the benefit then he can't enroll it again that
+
+HR Benefit Dashboard -> after adding the benefit plan -> it should shown to him in his dashboard what are active plans and also needs a approval from financial manager after that it will display for the every employee, there after if employee enrollee the benefit it should approve by the financial manager after that which are enrolled for which benefit should be display for both financial manager and hr benefit 
+
+• Track employee activity submissions and compute leaderboard rankings
+
+Finance Executive -> Tracks premium costs, manages reimbursement claim
+approvals, and monitors benefits budget
+
+Wellness Program Coordinator -> Designs and manages wellness challenges, tracks
+participation, and rewards completion
+
+after creating the challenges it should approve by the finance executive and what and after approve all challenges should be display to -> employee, hr and wellness coordinator 
+
+Recognition Manager -> Manages peer recognition awards, milestone rewards, and
+leaderboard programs
+
+HR Admin -> Configures benefits catalog, plan eligibility rules, wellness templates, and
+user roles
+there was a front bug when admin tries to access the other profile it was able to access but there is no option to admin or other profile 
+
+
+submit -> accept/ reject 
