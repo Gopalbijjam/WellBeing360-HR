@@ -10,26 +10,34 @@ namespace WellBeing360.Services
 {
     public class BenefitManagementService : IBenefitManagementService
     {
+        private readonly IBenefitPlanRepository _planRepository;
+        private readonly IEnrolmentRepository _enrolmentRepository;
+        private readonly IUserRepository _userRepository;
+        private readonly INotificationRepository _notificationRepository;
         private readonly IUnitOfWork _unitOfWork;
 
-        public BenefitManagementService(IUnitOfWork unitOfWork)
+        public BenefitManagementService(IBenefitPlanRepository planRepository, IEnrolmentRepository enrolmentRepository, IUserRepository userRepository, INotificationRepository notificationRepository, IUnitOfWork unitOfWork)
         {
+            _planRepository = planRepository;
+            _enrolmentRepository = enrolmentRepository;
+            _userRepository = userRepository;
+            _notificationRepository = notificationRepository;
             _unitOfWork = unitOfWork;
         }
 
         public async Task<IEnumerable<BenefitPlan>> GetPlansAsync()
         {
-            return await _unitOfWork.BenefitPlans.GetAllAsync();
+            return await _planRepository.GetAllAsync();
         }
 
         public async Task<BenefitPlan?> GetPlanByIdAsync(int id)
         {
-            return await _unitOfWork.BenefitPlans.GetByIdAsync(id);
+            return await _planRepository.GetByIdAsync(id);
         }
 
         public async Task<BenefitPlan> CreatePlanAsync(BenefitPlan plan)
         {
-            await _unitOfWork.BenefitPlans.AddAsync(plan);
+            await _planRepository.AddAsync(plan);
             await _unitOfWork.CompleteAsync();
             return plan;
         }
@@ -41,7 +49,7 @@ namespace WellBeing360.Services
 
         public async Task<IEnumerable<EnrolmentWindow>> GetEnrolmentWindowsAsync()
         {
-            return await _unitOfWork.EnrolmentWindows.GetAllAsync();
+            return await _enrolmentRepository.GetEnrolmentWindowsAsync();
         }
 
         public async Task<EnrolmentWindow?> GetCurrentOpenWindowAsync()
@@ -65,7 +73,7 @@ namespace WellBeing360.Services
             var plan = await _unitOfWork.BenefitPlans.GetByIdAsync(request.PlanID);
             if (plan == null || plan.Status != "Active") return null;
 
-            var window = await _unitOfWork.EnrolmentWindows.GetByIdAsync(request.WindowID);
+            var window = await _enrolmentRepository.GetByIdAsync(request.WindowID);
             if (window == null || window.Status != "Open") return null;
 
             // 1. Grade Eligibility Check
@@ -79,10 +87,10 @@ namespace WellBeing360.Services
             }
 
             // 2. Clear existing enrolment for this plan/window if exists (update/replace)
-            var existingEnrolments = await _unitOfWork.BenefitEnrolments.FindAsync(e => e.EmployeeID == employeeId && e.PlanID == request.PlanID && e.WindowID == request.WindowID);
+            var existingEnrolments = (await _enrolmentRepository.GetEmployeeEnrolmentsAsync(employeeId)).Where(e => e.PlanID == request.PlanID && e.WindowID == request.WindowID).ToList();
             foreach (var existing in existingEnrolments)
             {
-                _unitOfWork.BenefitEnrolments.Remove(existing);
+                _enrolmentRepository.RemoveEnrolment(existing);
             }
 
             // 3. Create Enrolment
@@ -98,7 +106,7 @@ namespace WellBeing360.Services
                 Status = "Submitted"
             };
 
-            await _unitOfWork.BenefitEnrolments.AddAsync(enrolment);
+            await _enrolmentRepository.AddEnrolmentAsync(enrolment);
 
             // 4. Add Dependents
             if (request.Dependents.Any())
@@ -113,7 +121,7 @@ namespace WellBeing360.Services
                         DateOfBirth = depDto.DateOfBirth,
                         Status = "Active"
                     };
-                    await _unitOfWork.Dependents.AddAsync(dependent);
+                    await _enrolmentRepository.AddDependentAsync(dependent);
                 }
             }
 
@@ -126,7 +134,7 @@ namespace WellBeing360.Services
                 Status = "Unread",
                 CreatedDate = DateTime.UtcNow
             };
-            await _unitOfWork.Notifications.AddAsync(notification);
+            await _notificationRepository.AddAsync(notification);
 
             await _unitOfWork.CompleteAsync();
             return enrolment;
@@ -134,12 +142,12 @@ namespace WellBeing360.Services
 
         public async Task<IEnumerable<BenefitEnrolment>> GetEmployeeEnrolmentsAsync(int employeeId)
         {
-            return await _unitOfWork.BenefitEnrolments.FindAsync(e => e.EmployeeID == employeeId);
+            return await _enrolmentRepository.GetEmployeeEnrolmentsAsync(employeeId);
         }
 
         public async Task<IEnumerable<Dependent>> GetDependentsAsync(int employeeId)
         {
-            return await _unitOfWork.Dependents.FindAsync(d => d.EmployeeID == employeeId && d.Status == "Active");
+            return await _enrolmentRepository.GetDependentsAsync(employeeId);
         }
 
         public async Task<Dependent> AddDependentAsync(int employeeId, DependentDTO dependentDto)
@@ -152,27 +160,27 @@ namespace WellBeing360.Services
                 DateOfBirth = dependentDto.DateOfBirth,
                 Status = "Active"
             };
-            await _unitOfWork.Dependents.AddAsync(dependent);
+            await _enrolmentRepository.AddDependentAsync(dependent);
             await _unitOfWork.CompleteAsync();
             return dependent;
         }
 
         public async Task<bool> RemoveDependentAsync(int dependentId)
         {
-            var dependent = await _unitOfWork.Dependents.GetByIdAsync(dependentId);
+            var dependent = await _enrolmentRepository.GetDependentByIdAsync(dependentId);
             if (dependent == null) return false;
 
             dependent.Status = "Removed";
-            _unitOfWork.Dependents.Update(dependent);
+            _enrolmentRepository.UpdateDependent(dependent);
             await _unitOfWork.CompleteAsync();
             return true;
         }
 
         public async Task<IEnumerable<BenefitEnrolment>> GetAllEnrolmentsAsync()
         {
-            var enrolments = await _unitOfWork.BenefitEnrolments.GetAllAsync();
-            var users = await _unitOfWork.Users.GetAllAsync();
-            var plans = await _unitOfWork.BenefitPlans.GetAllAsync();
+            var enrolments = await _enrolmentRepository.GetAllEnrolmentsAsync();
+            var users = await _userRepository.GetAllAsync();
+            var plans = await _planRepository.GetAllAsync();
 
             var userMap = users.ToDictionary(u => u.UserID, u => u);
             var planMap = plans.ToDictionary(p => p.PlanID, p => p);
@@ -194,11 +202,11 @@ namespace WellBeing360.Services
 
         public async Task<BenefitPlan?> UpdatePlanStatusAsync(int planId, string status)
         {
-            var plan = await _unitOfWork.BenefitPlans.GetByIdAsync(planId);
+            var plan = await _planRepository.GetByIdAsync(planId);
             if (plan == null) return null;
 
             plan.Status = status;
-            _unitOfWork.BenefitPlans.Update(plan);
+            _planRepository.Update(plan);
             await _unitOfWork.CompleteAsync();
             return plan;
         }

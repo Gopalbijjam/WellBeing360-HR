@@ -6,9 +6,9 @@ namespace WellBeing360.Core.Interfaces
 {
     public interface IUnitOfWork : IDisposable
     {
-        IRepository<User> Users { get; }
+        IUserRepository Users { get; }
         IRepository<AuditLog> AuditLogs { get; }
-        IRepository<BenefitPlan> BenefitPlans { get; }
+        IBenefitPlanRepository BenefitPlans { get; }
         IRepository<FlexBenefitBucket> FlexBenefitBuckets { get; }
         IRepository<EnrolmentWindow> EnrolmentWindows { get; }
         IRepository<BenefitEnrolment> BenefitEnrolments { get; }

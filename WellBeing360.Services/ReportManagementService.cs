@@ -10,17 +10,21 @@ namespace WellBeing360.Services
 {
     public class ReportManagementService : IReportManagementService
     {
+        private readonly IReportRepository _reportRepository;
+        private readonly IUserRepository _userRepository;
         private readonly IUnitOfWork _unitOfWork;
 
-        public ReportManagementService(IUnitOfWork unitOfWork)
+        public ReportManagementService(IReportRepository reportRepository, IUserRepository userRepository, IUnitOfWork unitOfWork)
         {
+            _reportRepository = reportRepository;
+            _userRepository = userRepository;
             _unitOfWork = unitOfWork;
         }
 
         public async Task<BenefitsReport> GenerateReportAsync(string scope)
         {
             // Gather statistics
-            var users = await _unitOfWork.Users.GetAllAsync();
+            var users = await _userRepository.GetAllAsync();
             var totalEmployees = users.Count(u => u.Role == "Employee");
 
             var enrolments = await _unitOfWork.BenefitEnrolments.GetAllAsync();
@@ -66,7 +70,7 @@ namespace WellBeing360.Services
                 GeneratedDate = DateTime.UtcNow
             };
 
-            await _unitOfWork.BenefitsReports.AddAsync(report);
+            await _reportRepository.AddReportAsync(report);
             await _unitOfWork.CompleteAsync();
 
             return report;

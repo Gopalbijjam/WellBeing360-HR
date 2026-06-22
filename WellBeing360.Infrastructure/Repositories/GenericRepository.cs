@@ -12,7 +12,7 @@ namespace WellBeing360.Infrastructure.Repositories
     public class GenericRepository<T> : IRepository<T> where T : class
     {
         protected readonly WellBeingContext _context;
-        private readonly DbSet<T> _dbSet;
+        protected readonly DbSet<T> _dbSet;
 
         public GenericRepository(WellBeingContext context)
         {

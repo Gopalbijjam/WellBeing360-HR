@@ -13,9 +13,9 @@ namespace WellBeing360.Infrastructure.Repositories
         public UnitOfWork(WellBeingContext context)
         {
             _context = context;
-            Users = new GenericRepository<User>(_context);
+            Users = new UserRepository(_context);
             AuditLogs = new GenericRepository<AuditLog>(_context);
-            BenefitPlans = new GenericRepository<BenefitPlan>(_context);
+            BenefitPlans = new BenefitPlanRepository(_context);
             FlexBenefitBuckets = new GenericRepository<FlexBenefitBucket>(_context);
             EnrolmentWindows = new GenericRepository<EnrolmentWindow>(_context);
             BenefitEnrolments = new GenericRepository<BenefitEnrolment>(_context);
@@ -32,9 +32,9 @@ namespace WellBeing360.Infrastructure.Repositories
             Notifications = new GenericRepository<Notification>(_context);
         }
 
-        public IRepository<User> Users { get; }
+        public IUserRepository Users { get; }
         public IRepository<AuditLog> AuditLogs { get; }
-        public IRepository<BenefitPlan> BenefitPlans { get; }
+        public IBenefitPlanRepository BenefitPlans { get; }
         public IRepository<FlexBenefitBucket> FlexBenefitBuckets { get; }
         public IRepository<EnrolmentWindow> EnrolmentWindows { get; }
         public IRepository<BenefitEnrolment> BenefitEnrolments { get; }

@@ -97,6 +97,15 @@ builder.Services.AddScoped<IEapManagementService, EapManagementService>();
 builder.Services.AddScoped<IRecognitionManagementService, RecognitionManagementService>();
 builder.Services.AddScoped<IReportManagementService, ReportManagementService>();
 builder.Services.AddScoped<INotificationManagementService, NotificationManagementService>();
+// Specialized repository registrations
+builder.Services.AddScoped<WellBeing360.Core.Interfaces.IBenefitPlanRepository, WellBeing360.Infrastructure.Repositories.BenefitPlanRepository>();
+builder.Services.AddScoped<WellBeing360.Core.Interfaces.IUserRepository, WellBeing360.Infrastructure.Repositories.UserRepository>();
+builder.Services.AddScoped<WellBeing360.Core.Interfaces.IEapRepository, WellBeing360.Infrastructure.Repositories.EapRepository>();
+builder.Services.AddScoped<WellBeing360.Core.Interfaces.IEnrolmentRepository, WellBeing360.Infrastructure.Repositories.EnrolmentRepository>();
+builder.Services.AddScoped<WellBeing360.Core.Interfaces.INotificationRepository, WellBeing360.Infrastructure.Repositories.NotificationRepository>();
+builder.Services.AddScoped<WellBeing360.Core.Interfaces.IRecognitionRepository, WellBeing360.Infrastructure.Repositories.RecognitionRepository>();
+builder.Services.AddScoped<WellBeing360.Core.Interfaces.IReportRepository, WellBeing360.Infrastructure.Repositories.ReportRepository>();
+builder.Services.AddScoped<WellBeing360.Core.Interfaces.IWellnessRepository, WellBeing360.Infrastructure.Repositories.WellnessRepository>();
 
 
 

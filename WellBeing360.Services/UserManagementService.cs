@@ -9,16 +9,18 @@ namespace WellBeing360.Services
 {
     public class UserManagementService : IUserManagementService
     {
+        private readonly IUserRepository _userRepository;
         private readonly IUnitOfWork _unitOfWork;
 
-        public UserManagementService(IUnitOfWork unitOfWork)
+        public UserManagementService(IUserRepository userRepository, IUnitOfWork unitOfWork)
         {
+            _userRepository = userRepository;
             _unitOfWork = unitOfWork;
         }
 
         public async Task<LoginResponse?> LoginAsync(LoginRequest request)
         {
-            var users = await _unitOfWork.Users.FindAsync(u => u.Email.ToLower() == request.Email.ToLower());
+            var users = await _userRepository.FindAsync(u => u.Email.ToLower() == request.Email.ToLower());
             var user = users.FirstOrDefault();
 
             if (user == null || user.Status != "Active" || user.Password != request.Password)
@@ -41,7 +43,7 @@ namespace WellBeing360.Services
 
         public async Task<User?> RegisterAsync(RegisterRequest request)
         {
-            var existing = await _unitOfWork.Users.FindAsync(u => u.Email.ToLower() == request.Email.ToLower());
+            var existing = await _userRepository.FindAsync(u => u.Email.ToLower() == request.Email.ToLower());
             if (existing.Any())
             {
                 return null;
@@ -63,31 +65,31 @@ namespace WellBeing360.Services
                 EmployeeID = employeeId
             };
 
-            await _unitOfWork.Users.AddAsync(user);
+            await _userRepository.AddAsync(user);
             await _unitOfWork.CompleteAsync();
             return user;
         }
 
         public async Task<User?> GetUserByIdAsync(int id)
         {
-            return await _unitOfWork.Users.GetByIdAsync(id);
+            return await _userRepository.GetByIdAsync(id);
         }
 
         public async Task<IEnumerable<User>> GetAllUsersAsync()
         {
-            return await _unitOfWork.Users.GetAllAsync();
+            return await _userRepository.GetAllAsync();
         }
 
         public async Task<User> CreateUserAsync(User user)
         {
-            await _unitOfWork.Users.AddAsync(user);
+            await _userRepository.AddAsync(user);
             await _unitOfWork.CompleteAsync();
             return user;
         }
 
         public async Task<User?> UpdateUserAsync(int id, User user)
         {
-            var existingUser = await _unitOfWork.Users.GetByIdAsync(id);
+            var existingUser = await _userRepository.GetByIdAsync(id);
             if (existingUser == null) return null;
 
             existingUser.Name = user.Name;
@@ -98,7 +100,7 @@ namespace WellBeing360.Services
             existingUser.DepartmentID = user.DepartmentID;
             existingUser.Status = user.Status;
 
-            _unitOfWork.Users.Update(existingUser);
+            _userRepository.Update(existingUser);
             await _unitOfWork.CompleteAsync();
             return existingUser;
         }

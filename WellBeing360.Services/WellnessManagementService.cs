@@ -10,45 +10,53 @@ namespace WellBeing360.Services
 {
     public class WellnessManagementService : IWellnessManagementService
     {
+        private readonly IWellnessRepository _wellnessRepository;
+        private readonly INotificationRepository _notificationRepository;
+        private readonly IRecognitionRepository _recognitionRepository;
+        private readonly IUserRepository _userRepository;
         private readonly IUnitOfWork _unitOfWork;
 
-        public WellnessManagementService(IUnitOfWork unitOfWork)
+        public WellnessManagementService(IWellnessRepository wellnessRepository, INotificationRepository notificationRepository, IRecognitionRepository recognitionRepository, IUserRepository userRepository, IUnitOfWork unitOfWork)
         {
+            _wellnessRepository = wellnessRepository;
+            _notificationRepository = notificationRepository;
+            _recognitionRepository = recognitionRepository;
+            _userRepository = userRepository;
             _unitOfWork = unitOfWork;
         }
 
         public async Task<IEnumerable<WellnessProgram>> GetProgramsAsync()
         {
-            return await _unitOfWork.WellnessPrograms.GetAllAsync();
+            return await _wellnessRepository.GetProgramsAsync();
         }
 
         public async Task<WellnessProgram?> GetProgramByIdAsync(int id)
         {
-            return await _unitOfWork.WellnessPrograms.GetByIdAsync(id);
+            return await _wellnessRepository.GetProgramByIdAsync(id);
         }
 
         public async Task<WellnessProgram> CreateProgramAsync(WellnessProgram program)
         {
-            await _unitOfWork.WellnessPrograms.AddAsync(program);
+            await _wellnessRepository.AddProgramAsync(program);
             await _unitOfWork.CompleteAsync();
             return program;
         }
 
         public async Task<IEnumerable<WellnessChallenge>> GetChallengesAsync(int programId)
         {
-            return await _unitOfWork.WellnessChallenges.FindAsync(wc => wc.ProgramID == programId);
+            return await _wellnessRepository.GetChallengesByProgramAsync(programId);
         }
 
         public async Task<WellnessChallenge> CreateChallengeAsync(WellnessChallenge challenge)
         {
-            await _unitOfWork.WellnessChallenges.AddAsync(challenge);
+            await _wellnessRepository.AddChallengeAsync(challenge);
             await _unitOfWork.CompleteAsync();
             return challenge;
         }
 
         public async Task<ActivityLog> LogActivityAsync(int employeeId, ActivityLogRequest request)
         {
-            var challenge = await _unitOfWork.WellnessChallenges.GetByIdAsync(request.ChallengeID);
+            var challenge = await _wellnessRepository.GetChallengeByIdAsync(request.ChallengeID);
             if (challenge == null || challenge.Status != "Active")
             {
                 throw new ArgumentException("Challenge not found or not active.");
@@ -71,12 +79,12 @@ namespace WellBeing360.Services
                 Status = "Verified" // Auto-verified for instant rewards experience
             };
 
-            await _unitOfWork.ActivityLogs.AddAsync(log);
+            await _wellnessRepository.AddActivityLogAsync(log);
 
             // Update user points balance
             if (pointsEarned > 0)
             {
-                var pointsRecords = await _unitOfWork.RewardPoints.FindAsync(rp => rp.EmployeeID == employeeId);
+                var pointsRecords = await _recognitionRepository.GetPointsByEmployeeAsync(employeeId);
                 var pointsRecord = pointsRecords.FirstOrDefault();
 
                 if (pointsRecord == null)
@@ -89,14 +97,14 @@ namespace WellBeing360.Services
                         Balance = pointsEarned,
                         LastUpdated = DateTime.UtcNow
                     };
-                    await _unitOfWork.RewardPoints.AddAsync(pointsRecord);
+                    await _recognitionRepository.AddOrUpdatePointsAsync(pointsRecord);
                 }
                 else
                 {
                     pointsRecord.TotalEarned += pointsEarned;
                     pointsRecord.Balance += pointsEarned;
                     pointsRecord.LastUpdated = DateTime.UtcNow;
-                    _unitOfWork.RewardPoints.Update(pointsRecord);
+                    await _recognitionRepository.AddOrUpdatePointsAsync(pointsRecord);
                 }
 
                 // Add Notification
@@ -108,7 +116,7 @@ namespace WellBeing360.Services
                     Status = "Unread",
                     CreatedDate = DateTime.UtcNow
                 };
-                await _unitOfWork.Notifications.AddAsync(notification);
+                await _notificationRepository.AddAsync(notification);
             }
 
             await _unitOfWork.CompleteAsync();
@@ -117,14 +125,14 @@ namespace WellBeing360.Services
 
         public async Task<IEnumerable<ActivityLog>> GetEmployeeLogsAsync(int employeeId)
         {
-            return await _unitOfWork.ActivityLogs.FindAsync(al => al.EmployeeID == employeeId);
+            return await _wellnessRepository.GetLogsByEmployeeAsync(employeeId);
         }
 
         public async Task<IEnumerable<CoordinatorActivityLogResponse>> GetCoordinatorActivityLogsAsync()
         {
-            var logs = await _unitOfWork.ActivityLogs.GetAllAsync();
-            var challenges = await _unitOfWork.WellnessChallenges.GetAllAsync();
-            var users = await _unitOfWork.Users.GetAllAsync();
+            var logs = await _wellnessRepository.GetAllLogsAsync();
+            var challenges = await _wellnessRepository.GetAllChallengesAsync();
+            var users = await _userRepository.GetAllAsync();
 
             var challengeMap = challenges.ToDictionary(c => c.ChallengeID, c => c);
             var userMap = users.ToDictionary(u => u.UserID, u => u);
@@ -151,13 +159,13 @@ namespace WellBeing360.Services
 
         public async Task<IEnumerable<LeaderboardEntryDTO>> GetLeaderboardAsync(int programId)
         {
-            var challenges = await _unitOfWork.WellnessChallenges.FindAsync(wc => wc.ProgramID == programId);
+            var challenges = await _wellnessRepository.GetChallengesByProgramAsync(programId);
             var challengeIds = challenges.Select(c => c.ChallengeID).ToList();
 
-            var logs = await _unitOfWork.ActivityLogs.GetAllAsync();
+            var logs = await _wellnessRepository.GetAllLogsAsync();
             var filteredLogs = logs.Where(l => challengeIds.Contains(l.ChallengeID) && l.Status == "Verified");
 
-            var users = await _unitOfWork.Users.GetAllAsync();
+            var users = await _userRepository.GetAllAsync();
             var userMap = users.ToDictionary(u => u.UserID, u => u);
 
             var leaderboard = filteredLogs
@@ -183,18 +191,18 @@ namespace WellBeing360.Services
 
         public async Task<WellnessChallenge?> UpdateChallengeStatusAsync(int challengeId, string status)
         {
-            var challenge = await _unitOfWork.WellnessChallenges.GetByIdAsync(challengeId);
+            var challenge = await _wellnessRepository.GetChallengeByIdAsync(challengeId);
             if (challenge == null) return null;
 
             challenge.Status = status;
-            _unitOfWork.WellnessChallenges.Update(challenge);
+            _wellnessRepository.UpdateChallenge(challenge);
             await _unitOfWork.CompleteAsync();
             return challenge;
         }
 
         public async Task<IEnumerable<WellnessChallenge>> GetAllChallengesAcrossProgramsAsync()
         {
-            return await _unitOfWork.WellnessChallenges.GetAllAsync();
+            return await _wellnessRepository.GetAllChallengesAsync();
         }
     }
 }

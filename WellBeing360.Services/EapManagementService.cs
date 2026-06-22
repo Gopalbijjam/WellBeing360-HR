@@ -10,35 +10,39 @@ namespace WellBeing360.Services
 {
     public class EapManagementService : IEapManagementService
     {
+        private readonly IEapRepository _eapRepository;
+        private readonly INotificationRepository _notificationRepository;
         private readonly IUnitOfWork _unitOfWork;
 
-        public EapManagementService(IUnitOfWork unitOfWork)
+        public EapManagementService(IEapRepository eapRepository, INotificationRepository notificationRepository, IUnitOfWork unitOfWork)
         {
+            _eapRepository = eapRepository;
+            _notificationRepository = notificationRepository;
             _unitOfWork = unitOfWork;
         }
 
         public async Task<IEnumerable<EAPService>> GetServicesAsync()
         {
-            return await _unitOfWork.EAPServices.GetAllAsync();
+            return await _eapRepository.GetServicesAsync();
         }
 
         public async Task<EAPService> CreateServiceAsync(EAPService service)
         {
-            await _unitOfWork.EAPServices.AddAsync(service);
+            await _eapRepository.AddServiceAsync(service);
             await _unitOfWork.CompleteAsync();
             return service;
         }
 
         public async Task<EAPSession> BookSessionAsync(int employeeId, EAPBookingRequest request)
         {
-            var service = await _unitOfWork.EAPServices.GetByIdAsync(request.ServiceID);
+            var service = await _eapRepository.GetServiceByIdAsync(request.ServiceID);
             if (service == null || service.Status != "Active")
             {
                 throw new ArgumentException("EAP Service not found or inactive.");
             }
 
             // Check sessions limit
-            var employeeSessions = await _unitOfWork.EAPSessions.FindAsync(s => s.EmployeeID == employeeId && s.ServiceID == request.ServiceID && s.Status != "Cancelled");
+            var employeeSessions = (await _eapRepository.GetSessionsByEmployeeAsync(employeeId)).Where(s => s.ServiceID == request.ServiceID && s.Status != "Cancelled");
             if (employeeSessions.Count() >= service.SessionsAllowedPerEmployee)
             {
                 throw new InvalidOperationException($"You have reached the maximum allowed sessions ({service.SessionsAllowedPerEmployee}) for this service.");
@@ -54,7 +58,7 @@ namespace WellBeing360.Services
                 Status = "Requested"
             };
 
-            await _unitOfWork.EAPSessions.AddAsync(session);
+            await _eapRepository.AddSessionAsync(session);
 
             // Add notification
             var notification = new Notification
@@ -65,7 +69,7 @@ namespace WellBeing360.Services
                 Status = "Unread",
                 CreatedDate = DateTime.UtcNow
             };
-            await _unitOfWork.Notifications.AddAsync(notification);
+            await _notificationRepository.AddAsync(notification);
 
             await _unitOfWork.CompleteAsync();
             return session;
@@ -73,17 +77,17 @@ namespace WellBeing360.Services
 
         public async Task<IEnumerable<EAPSession>> GetEmployeeSessionsAsync(int employeeId)
         {
-            return await _unitOfWork.EAPSessions.FindAsync(s => s.EmployeeID == employeeId);
+            return await _eapRepository.GetSessionsByEmployeeAsync(employeeId);
         }
 
         public async Task<IEnumerable<EAPSession>> GetAllSessionsAsync()
         {
-            return await _unitOfWork.EAPSessions.GetAllAsync();
+            return await _eapRepository.GetAllSessionsAsync();
         }
 
         public async Task<EAPSession?> UpdateSessionStatusAsync(int sessionId, string status, string counsellorRef)
         {
-            var session = await _unitOfWork.EAPSessions.GetByIdAsync(sessionId);
+            var session = await _eapRepository.GetSessionByIdAsync(sessionId);
             if (session == null) return null;
 
             session.Status = status;
@@ -92,12 +96,12 @@ namespace WellBeing360.Services
                 session.CounsellorRef = counsellorRef;
             }
 
-            _unitOfWork.EAPSessions.Update(session);
+            _eapRepository.UpdateSession(session);
 
             // Notify employee
-            var service = await _unitOfWork.EAPServices.GetByIdAsync(session.ServiceID);
+            var service = await _eapRepository.GetServiceByIdAsync(session.ServiceID);
             var serviceName = service?.ServiceName ?? "EAP Service";
-            
+
             var notification = new Notification
             {
                 UserID = session.EmployeeID,
@@ -106,7 +110,7 @@ namespace WellBeing360.Services
                 Status = "Unread",
                 CreatedDate = DateTime.UtcNow
             };
-            await _unitOfWork.Notifications.AddAsync(notification);
+            await _notificationRepository.AddAsync(notification);
 
             await _unitOfWork.CompleteAsync();
             return session;

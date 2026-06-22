@@ -10,10 +10,16 @@ namespace WellBeing360.Services
 {
     public class RecognitionManagementService : IRecognitionManagementService
     {
+        private readonly IRecognitionRepository _recognitionRepository;
+        private readonly INotificationRepository _notificationRepository;
+        private readonly IUserRepository _userRepository;
         private readonly IUnitOfWork _unitOfWork;
 
-        public RecognitionManagementService(IUnitOfWork unitOfWork)
+        public RecognitionManagementService(IRecognitionRepository recognitionRepository, INotificationRepository notificationRepository, IUserRepository userRepository, IUnitOfWork unitOfWork)
         {
+            _recognitionRepository = recognitionRepository;
+            _notificationRepository = notificationRepository;
+            _userRepository = userRepository;
             _unitOfWork = unitOfWork;
         }
 
@@ -36,13 +42,12 @@ namespace WellBeing360.Services
                 Status = "Awarded"
             };
 
-            await _unitOfWork.RecognitionAwards.AddAsync(award);
+            await _recognitionRepository.AddAwardAsync(award);
 
             // Update recipient points balance
             if (request.PointsAwarded > 0)
             {
-                var pointsRecords = await _unitOfWork.RewardPoints.FindAsync(rp => rp.EmployeeID == request.RecipientID);
-                var pointsRecord = pointsRecords.FirstOrDefault();
+                var pointsRecord = (await _recognitionRepository.GetPointsByEmployeeAsync(request.RecipientID)).FirstOrDefault();
 
                 if (pointsRecord == null)
                 {
@@ -54,18 +59,18 @@ namespace WellBeing360.Services
                         Balance = request.PointsAwarded,
                         LastUpdated = DateTime.UtcNow
                     };
-                    await _unitOfWork.RewardPoints.AddAsync(pointsRecord);
+                    await _recognitionRepository.AddOrUpdatePointsAsync(pointsRecord);
                 }
                 else
                 {
                     pointsRecord.TotalEarned += request.PointsAwarded;
                     pointsRecord.Balance += request.PointsAwarded;
                     pointsRecord.LastUpdated = DateTime.UtcNow;
-                    _unitOfWork.RewardPoints.Update(pointsRecord);
+                    await _recognitionRepository.AddOrUpdatePointsAsync(pointsRecord);
                 }
 
                 // Add Notification to Recipient
-                var nominator = await _unitOfWork.Users.GetByIdAsync(nominatorId);
+                var nominator = await _userRepository.GetByIdAsync(nominatorId);
                 var nominatorName = nominator?.Name ?? "A colleague";
                 var notification = new Notification
                 {
@@ -75,7 +80,7 @@ namespace WellBeing360.Services
                     Status = "Unread",
                     CreatedDate = DateTime.UtcNow
                 };
-                await _unitOfWork.Notifications.AddAsync(notification);
+                await _notificationRepository.AddAsync(notification);
             }
 
             await _unitOfWork.CompleteAsync();
@@ -84,18 +89,18 @@ namespace WellBeing360.Services
 
         public async Task<IEnumerable<RecognitionAward>> GetAwardsReceivedAsync(int employeeId)
         {
-            return await _unitOfWork.RecognitionAwards.FindAsync(ra => ra.RecipientID == employeeId);
+            return await _recognitionRepository.GetAwardsReceivedAsync(employeeId);
         }
 
         public async Task<IEnumerable<RecognitionAward>> GetAwardsSentAsync(int employeeId)
         {
-            return await _unitOfWork.RecognitionAwards.FindAsync(ra => ra.NominatorID == employeeId);
+            return await _recognitionRepository.GetAwardsSentAsync(employeeId);
         }
 
         public async Task<IEnumerable<RecognitionAwardResponse>> GetAllAwardsAsync()
         {
-            var awards = await _unitOfWork.RecognitionAwards.GetAllAsync();
-            var users = await _unitOfWork.Users.GetAllAsync();
+            var awards = await _recognitionRepository.GetAllAwardsAsync();
+            var users = await _userRepository.GetAllAsync();
             var userMap = users.ToDictionary(u => u.UserID, u => u);
 
             return awards.Select(a => new RecognitionAwardResponse
@@ -114,8 +119,8 @@ namespace WellBeing360.Services
 
         public async Task<IEnumerable<EmployeePointsResponse>> GetAllPointsBalancesAsync()
         {
-            var points = await _unitOfWork.RewardPoints.GetAllAsync();
-            var users = await _unitOfWork.Users.GetAllAsync();
+            var points = await _recognitionRepository.GetAllPointsAsync();
+            var users = await _userRepository.GetAllAsync();
             var userMap = users.ToDictionary(u => u.UserID, u => u);
 
             return points.Select(p => new EmployeePointsResponse
@@ -132,31 +137,31 @@ namespace WellBeing360.Services
 
         public async Task<RewardPoints?> GetPointsBalanceAsync(int employeeId)
         {
-            var records = await _unitOfWork.RewardPoints.FindAsync(rp => rp.EmployeeID == employeeId);
+            var records = await _recognitionRepository.GetPointsByEmployeeAsync(employeeId);
             return records.FirstOrDefault();
         }
 
         public async Task<IEnumerable<RedemptionCatalog>> GetCatalogAsync()
         {
-            return await _unitOfWork.RedemptionCatalogItems.GetAllAsync();
+            return await _recognitionRepository.GetCatalogAsync();
         }
 
         public async Task<RedemptionCatalog> CreateCatalogItemAsync(RedemptionCatalog item)
         {
-            await _unitOfWork.RedemptionCatalogItems.AddAsync(item);
+            await _recognitionRepository.AddCatalogItemAsync(item);
             await _unitOfWork.CompleteAsync();
             return item;
         }
 
         public async Task<bool> RedeemItemAsync(int employeeId, int itemId)
         {
-            var item = await _unitOfWork.RedemptionCatalogItems.GetByIdAsync(itemId);
+            var item = await _recognitionRepository.GetCatalogItemByIdAsync(itemId);
             if (item == null || item.Status != "Available" || item.AvailableQuantity <= 0)
             {
                 throw new ArgumentException("Item is unavailable or out of stock.");
             }
 
-            var pointsRecords = await _unitOfWork.RewardPoints.FindAsync(rp => rp.EmployeeID == employeeId);
+            var pointsRecords = await _recognitionRepository.GetPointsByEmployeeAsync(employeeId);
             var pointsRecord = pointsRecords.FirstOrDefault();
 
             if (pointsRecord == null || pointsRecord.Balance < item.PointsRequired)
@@ -168,7 +173,7 @@ namespace WellBeing360.Services
             pointsRecord.TotalRedeemed += item.PointsRequired;
             pointsRecord.Balance -= item.PointsRequired;
             pointsRecord.LastUpdated = DateTime.UtcNow;
-            _unitOfWork.RewardPoints.Update(pointsRecord);
+            await _recognitionRepository.AddOrUpdatePointsAsync(pointsRecord);
 
             // Decrement catalog item inventory
             item.AvailableQuantity--;
@@ -176,7 +181,7 @@ namespace WellBeing360.Services
             {
                 item.Status = "OutOfStock";
             }
-            _unitOfWork.RedemptionCatalogItems.Update(item);
+            _recognitionRepository.UpdateCatalogItem(item);
 
             // Add notification
             var notification = new Notification
@@ -187,7 +192,7 @@ namespace WellBeing360.Services
                 Status = "Unread",
                 CreatedDate = DateTime.UtcNow
             };
-            await _unitOfWork.Notifications.AddAsync(notification);
+            await _notificationRepository.AddAsync(notification);
 
             await _unitOfWork.CompleteAsync();
             return true;
